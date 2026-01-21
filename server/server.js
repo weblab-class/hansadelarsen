@@ -113,6 +113,21 @@ const port = 3000;
 const server = http.Server(app);
 socketManager.init(server);
 
+// ... all your API routes (/api/login, /api/whoami, etc.) go ABOVE this ...
+
+// 1. Serve static files from the React build folder
+const reacttPath = path.resolve(__dirname, "..", "client", "dist");
+app.use(express.static(reacttPath));
+
+// 2. THE IMPORTANT PART: Catch-all handler
+// If a request comes in that doesn't match an API route or a static file,
+// send back the React index.html file.
+app.get("*", (req, res) => {
+  res.sendFile(path.join(reacttPath, "index.html"));
+});
+
+// app.listen(...) is down here
+
 server.listen(port, () => {
   console.log(`Server running on port: ${port}`);
 });

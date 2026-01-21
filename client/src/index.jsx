@@ -28,8 +28,6 @@ const router = createBrowserRouter(
       <Route path="/profile" element={<Profile />} />
       <Route path="/schedule" element={<Schedule />} />
       <Route path="/history" element={<History />} />
-
-      {/* --- ADD THE NEW ROUTES --- */}
       <Route path="/about" element={<About />} />
       <Route path="/quest-share" element={<QuestShare />} />
     </Route>
