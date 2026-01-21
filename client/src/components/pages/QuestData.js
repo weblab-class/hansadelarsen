@@ -195,21 +195,19 @@ const calculateScore = (quest, prefs) => {
   return Math.min(99, Math.max(0, score));
 };
 
-// --- 3. GENERATION LOGIC ---
+// --- 3. GENERATION LOGIC (UPDATED FOR SAFETY) ---
 
 export const generateQuests = (userPreferences) => {
   const quests = [];
   const DAYS_IN_WEEK = 7;
 
   // IMPORTANT: GRID MAPPING
-  // 8 AM = Index 0
-  // 9 AM = Index 1
-  // ...
-  // 12 PM = Index 4
-  // 6 PM = Index 10
-  // 11 PM = Index 15
+  // 8 AM = Index 0 ... 6 PM = Index 10 ... 11 PM = Index 15
 
   const createQuest = (template, day, startHour) => {
+    // SAFETY CHECK 1: If template is missing, stop immediately
+    if (!template) return null;
+
     // Add Price Symbols to Title
     let displayTitle = template.title;
     if (template.type === "meal") {
@@ -224,7 +222,7 @@ export const generateQuests = (userPreferences) => {
       title: displayTitle,
       type: template.type,
       day: day,
-      startHour: startHour, // This is now the GRID INDEX (0-15)
+      startHour: startHour,
       duration: template.duration || 1,
       matchPercent: score,
       priceLevel: template.priceLevel,
@@ -235,50 +233,65 @@ export const generateQuests = (userPreferences) => {
   for (let day = 0; day < DAYS_IN_WEEK; day++) {
     // --- 1. GUARANTEED MEALS (3 per day) ---
 
-    // Breakfast (Index 0 = 8am, Index 1 = 9am)
-    const breakfastTemplate = MEAL_TEMPLATES.filter((t) => t.tags.includes("morning"))[
-      Math.floor(Math.random() * 2)
-    ];
-    if (breakfastTemplate) {
+    // Breakfast
+    const breakfastPool = MEAL_TEMPLATES.filter((t) => t.tags.includes("morning"));
+    if (breakfastPool.length > 0) {
+      const bTemplate = breakfastPool[Math.floor(Math.random() * breakfastPool.length)];
       const rSlot = Math.floor(Math.random() * 2); // 0 or 1
-      quests.push(createQuest(breakfastTemplate, day, rSlot));
+      const q = createQuest(bTemplate, day, rSlot);
+      if (q) quests.push(q);
     }
 
-    // Lunch (Index 4 = 12pm)
-    const lunchTemplates = MEAL_TEMPLATES.filter((t) => t.tags.includes("lunch"));
-    const lunchTemplate = lunchTemplates[Math.floor(Math.random() * lunchTemplates.length)];
-    if (lunchTemplate) quests.push(createQuest(lunchTemplate, day, 4));
+    // Lunch
+    const lunchPool = MEAL_TEMPLATES.filter((t) => t.tags.includes("lunch"));
+    if (lunchPool.length > 0) {
+      const lTemplate = lunchPool[Math.floor(Math.random() * lunchPool.length)];
+      const q = createQuest(lTemplate, day, 4);
+      if (q) quests.push(q);
+    }
 
-    // Dinner (Index 10 = 6pm)
-    const dinnerTemplates = MEAL_TEMPLATES.filter((t) => t.tags.includes("dinner"));
-    const dinnerTemplate = dinnerTemplates[Math.floor(Math.random() * dinnerTemplates.length)];
-    if (dinnerTemplate) quests.push(createQuest(dinnerTemplate, day, 10));
+    // Dinner
+    const dinnerPool = MEAL_TEMPLATES.filter((t) => t.tags.includes("dinner"));
+    if (dinnerPool.length > 0) {
+      const dTemplate = dinnerPool[Math.floor(Math.random() * dinnerPool.length)];
+      const q = createQuest(dTemplate, day, 10);
+      if (q) quests.push(q);
+    }
 
     // --- 2. GUARANTEED TIME-BUCKETED ACTIVITIES ---
 
-    // A. Morning Slot (8 AM - 11 AM) -> Indices 0, 1, 2
+    // A. Morning Slot (Indices 0, 1, 2)
     const morningPool = ACTIVITY_TEMPLATES.filter(
       (t) => t.preferredTime === "morning" || !t.preferredTime
     );
-    const mTemplate = morningPool[Math.floor(Math.random() * morningPool.length)];
-    const mIndex = Math.floor(Math.random() * 3); // 0, 1, or 2
-    quests.push(createQuest(mTemplate, day, mIndex));
+    if (morningPool.length > 0) {
+      const mTemplate = morningPool[Math.floor(Math.random() * morningPool.length)];
+      const mIndex = Math.floor(Math.random() * 3);
+      const q = createQuest(mTemplate, day, mIndex);
+      if (q) quests.push(q);
+    }
 
-    // B. Afternoon Slot (1 PM - 4 PM) -> Indices 5, 6, 7, 8
+    // B. Afternoon Slot (Indices 5, 6, 7)
     const afternoonPool = ACTIVITY_TEMPLATES.filter(
       (t) => !t.preferredTime || t.preferredTime !== "morning"
     );
-    const aTemplate = afternoonPool[Math.floor(Math.random() * afternoonPool.length)];
-    const aIndex = Math.floor(Math.random() * 3) + 5; // 5, 6, 7
-    quests.push(createQuest(aTemplate, day, aIndex));
+    if (afternoonPool.length > 0) {
+      const aTemplate = afternoonPool[Math.floor(Math.random() * afternoonPool.length)];
+      const aIndex = Math.floor(Math.random() * 3) + 5;
+      const q = createQuest(aTemplate, day, aIndex);
+      if (q) quests.push(q);
+    }
 
-    // C. Evening Slot (7 PM - 10 PM) -> Indices 11, 12, 13
+    // C. Evening Slot (Indices 11, 12, 13)
     const eveningPool = ACTIVITY_TEMPLATES.filter(
       (t) => t.preferredTime === "evening" || !t.preferredTime
     );
-    const eTemplate = eveningPool[Math.floor(Math.random() * eveningPool.length)];
-    const eIndex = Math.floor(Math.random() * 3) + 11; // 11, 12, 13
-    quests.push(createQuest(eTemplate, day, eIndex));
+    if (eveningPool.length > 0) {
+      const eTemplate = eveningPool[Math.floor(Math.random() * eveningPool.length)];
+      const eIndex = Math.floor(Math.random() * 3) + 11;
+      const q = createQuest(eTemplate, day, eIndex);
+      if (q) quests.push(q);
+    }
   }
 
   return quests;

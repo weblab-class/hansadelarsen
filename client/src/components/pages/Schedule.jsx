@@ -107,13 +107,20 @@ const Schedule = () => {
   };
 
   // --- FETCH ---
+  // --- FETCH ---
   useEffect(() => {
     if (userId) {
       get("/api/whoami").then((user) => {
-        if (user.schedule) setRecurringSchedule(user.schedule);
+        // SAFETY CHECK: Only use the schedule if it has exactly 7 rows
+        if (user.schedule && user.schedule.length === 7) {
+          setRecurringSchedule(user.schedule);
+        }
+
         if (user.specificWeeks) setSpecificWeeks(user.specificWeeks);
         if (user.acceptedQuestsByWeek) setAcceptedQuestsByWeek(user.acceptedQuestsByWeek);
         if (user.ignoredQuestIds) setIgnoredQuestIds(user.ignoredQuestIds);
+
+        // Pass empty object if preferences are missing to prevent undefined errors
         setAllGeneratedQuests(generateQuests(user.preferences || {}));
       });
     }
