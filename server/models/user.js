@@ -27,6 +27,8 @@ const UserSchema = new mongoose.Schema({
 
   // 2. The Specific Exceptions (Key = Week Date, Value = Grid)
   specificWeeks: { type: Object, default: {} },
+  acceptedQuestsByWeek: { type: Object, default: {} }, // Stores the "Accepted" tab data
+  ignoredQuestIds: { type: [String], default: [] },
 });
 
 module.exports = mongoose.model("user", UserSchema);

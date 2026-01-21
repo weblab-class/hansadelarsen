@@ -21,9 +21,59 @@
 /* RIGHT COLUMN */
 .schedule-right-column {
   flex: 1;
-  padding: 40px;
+  padding: 0; /* Removing padding to let tabs flush */
   background-color: #fff;
   border-left: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TABS */
+.quest-tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 15px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #777;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.tab-btn.active {
+  color: #2196f3;
+  border-bottom-color: #2196f3;
+  background: #fff;
+}
+
+/* QUEST LIST CONTAINER */
+.quest-list {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.empty-msg {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  margin-top: 20px;
+  font-size: 0.9rem;
 }
 
 /* NAVIGATION ARROWS */
@@ -66,7 +116,7 @@
   border-color: #bbb;
 }
 
-/* BUTTONS */
+/* BUTTONS GENERIC */
 .save-button {
   padding: 8px 16px;
   border: none;
@@ -80,6 +130,43 @@
 }
 .save-button:hover {
   opacity: 0.9;
+}
+
+.btn-clear {
+  background: #fff;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+}
+.btn-cancel {
+  background: #eee;
+  color: #333;
+}
+.btn-specific {
+  background: #2196f3;
+}
+.btn-recurring {
+  background: #333;
+}
+
+/* WARNING BOX */
+.overwrite-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffebee;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #ef5350;
+}
+.warning-yes {
+  background: #ef5350;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+.warning-no {
+  background: #333;
+  font-size: 0.75rem;
+  padding: 4px 8px;
 }
 
 /* GRID CONTAINER */
@@ -97,19 +184,17 @@
   transition: all 0.3s ease;
 }
 
-/* EDIT MODE INDICATOR */
 .schedule-grid.editing-mode {
   outline: 3px solid #2196f3;
   outline-offset: 4px;
 }
 
-/* PAST / READ ONLY */
 .schedule-grid.disabled {
   filter: grayscale(80%);
   opacity: 0.8;
 }
 
-/* HEADERS */
+/* HEADERS & LABELS */
 .grid-header {
   background-color: #333;
   color: white;
@@ -118,8 +203,6 @@
   text-align: center;
   font-size: 0.9rem;
 }
-
-/* TIME LABELS */
 .time-label {
   background-color: #fff;
   display: flex;
@@ -142,12 +225,10 @@
 /* CELLS */
 .grid-cell {
   background-color: white;
-  cursor: default; /* Default is non-interactive */
+  cursor: default;
   height: 40px;
   transition: background-color 0.1s;
 }
-
-/* INTERACTIVE CELLS (When in edit mode) */
 .editing-mode .grid-cell {
   cursor: pointer;
 }
@@ -155,7 +236,6 @@
   filter: brightness(0.95);
 }
 
-/* COLORS */
 .cell-busy {
   background-color: white;
 }
@@ -169,7 +249,6 @@
   background-color: #2196f3;
 }
 
-/* QUEST HIGHLIGHT */
 .cell-highlight {
   background-color: #2196f3 !important;
   box-shadow: inset 0 0 0 2px #1565c0;
@@ -205,14 +284,6 @@
 }
 
 /* QUEST CARDS */
-.quest-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 600px;
-  overflow-y: auto;
-}
-
 .quest-card {
   background: white;
   border: 1px solid #eee;
@@ -234,6 +305,14 @@
 .quest-card.type-meal {
   border-left-color: #ffca28;
 }
+.quest-card.accepted-card {
+  border-left-color: #2196f3;
+  background: #e3f2fd;
+}
+.quest-card.ignored-card {
+  border-left-color: #999;
+  opacity: 0.7;
+}
 
 .quest-header {
   display: flex;
@@ -253,7 +332,117 @@
   border-radius: 4px;
   color: #555;
 }
+.accepted-badge {
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #2196f3;
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #bbdefb;
+}
 .quest-time {
   font-size: 0.8rem;
   color: #888;
+}
+
+/* QUEST ACTIONS */
+.quest-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.quest-btn {
+  flex: 1;
+  padding: 6px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-accept {
+  background: #333;
+  color: white;
+}
+.btn-accept:hover {
+  background: #2196f3;
+}
+.btn-ignore {
+  background: #f0f0f0;
+  color: #666;
+}
+.btn-ignore:hover {
+  background: #ddd;
+  color: #333;
+}
+.btn-restore {
+  background: #fff;
+  border: 1px solid #ccc;
+  width: 100%;
+  margin-top: 5px;
+}
+.btn-restore:hover {
+  background: #f0f0f0;
+}
+.quest-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+/* Edit Warning Banner */
+.edit-mode-warning {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #c62828;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 15px;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+/* Compatibility Slider Box */
+.compatibility-controls {
+  background: #f1f1f1;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.compatibility-controls label {
+  font-size: 0.85rem;
+  color: #555;
+  display: flex;
+  justify-content: space-between;
+}
+
+.compatibility-controls input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Update Score Font Size if needed */
+.quest-score {
+  font-size: 0.8rem;
+  color: #2e7d32;
+  font-weight: bold;
 }

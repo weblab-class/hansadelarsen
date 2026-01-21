@@ -42,6 +42,14 @@ const Schedule = () => {
   const [filteredQuests, setFilteredQuests] = useState([]);
   const [hoveredQuest, setHoveredQuest] = useState(null);
 
+  const [viewMode, setViewMode] = useState("available");
+  const [ignoredQuestIds, setIgnoredQuestIds] = useState([]);
+  const [acceptedQuestsByWeek, setAcceptedQuestsByWeek] = useState({});
+
+  // FILTERS
+  const [minCompatibility, setMinCompatibility] = useState(50);
+  const [hideMeals, setHideMeals] = useState(false);
+
   // --- EDIT STATE ---
   const [isEditing, setIsEditing] = useState(false);
   const [tempGrid, setTempGrid] = useState(null);
@@ -53,7 +61,7 @@ const Schedule = () => {
     const day = current.getDay() || 7;
     const startOfWeek = new Date(current);
     startOfWeek.setDate(current.getDate() - day + 1 + off * 7);
-    startOfWeek.setHours(0, 0, 0, 0); // Normalize time
+    startOfWeek.setHours(0, 0, 0, 0);
     return startOfWeek;
   };
 
@@ -84,6 +92,18 @@ const Schedule = () => {
   const jumpToToday = () => {
     setWeekOffset(0);
     setIsEditing(false);
+    setHoveredQuest(null);
+  };
+
+  const handleWeekChange = (direction) => {
+    setWeekOffset(weekOffset + direction);
+    handleCancel();
+    setHoveredQuest(null);
+  };
+
+  const handleTabChange = (mode) => {
+    setViewMode(mode);
+    setHoveredQuest(null);
   };
 
   // --- FETCH ---
@@ -92,6 +112,8 @@ const Schedule = () => {
       get("/api/whoami").then((user) => {
         if (user.schedule) setRecurringSchedule(user.schedule);
         if (user.specificWeeks) setSpecificWeeks(user.specificWeeks);
+        if (user.acceptedQuestsByWeek) setAcceptedQuestsByWeek(user.acceptedQuestsByWeek);
+        if (user.ignoredQuestIds) setIgnoredQuestIds(user.ignoredQuestIds);
         setAllGeneratedQuests(generateQuests(user.preferences || {}));
       });
     }
@@ -102,10 +124,32 @@ const Schedule = () => {
   const isPast = weekOffset < 0;
   const displayGrid = isEditing ? tempGrid : specificWeeks[currentWeekId] || recurringSchedule;
 
-  // --- QUEST LOGIC ---
+  const currentAccepted = acceptedQuestsByWeek[currentWeekId] || [];
+  const currentIgnored = allGeneratedQuests.filter((q) => ignoredQuestIds.includes(q.id));
+
+  const getTabBadge = (count) => {
+    if (count > 9) return " (10+)";
+    return ` (${count})`;
+  };
+
+  // --- QUEST FILTERING ---
   useEffect(() => {
     if (!allGeneratedQuests.length) return;
+
+    const currentAcceptedIds = (acceptedQuestsByWeek[currentWeekId] || []).map((q) => q.id);
+
     const validQuests = allGeneratedQuests.filter((quest) => {
+      // 1. Check Hide Meals
+      if (hideMeals && quest.type === "meal") return false;
+
+      // 2. Check Threshold
+      if (quest.matchPercent < minCompatibility) return false;
+
+      // 3. Exclude if ignored or accepted
+      if (ignoredQuestIds.includes(quest.id)) return false;
+      if (currentAcceptedIds.includes(quest.id)) return false;
+
+      // 4. Check grid fit
       for (let h = 0; h < quest.duration; h++) {
         const hourIndex = quest.startHour + h;
         if (hourIndex >= 16) return false;
@@ -115,8 +159,72 @@ const Schedule = () => {
       }
       return true;
     });
+
     setFilteredQuests(validQuests.sort((a, b) => b.matchPercent - a.matchPercent));
-  }, [allGeneratedQuests, displayGrid]);
+  }, [
+    allGeneratedQuests,
+    displayGrid,
+    ignoredQuestIds,
+    acceptedQuestsByWeek,
+    currentWeekId,
+    minCompatibility,
+    hideMeals,
+  ]);
+
+  // --- QUEST ACTIONS ---
+  const handleAcceptQuest = (quest) => {
+    let newGrid = JSON.parse(JSON.stringify(displayGrid));
+    for (let i = 0; i < quest.duration; i++) {
+      newGrid[quest.day][quest.startHour + i] = 3;
+    }
+    const previousAccepted = acceptedQuestsByWeek[currentWeekId] || [];
+    const newAcceptedList = [...previousAccepted, quest];
+    const updatedAcceptedMap = { ...acceptedQuestsByWeek, [currentWeekId]: newAcceptedList };
+
+    setAcceptedQuestsByWeek(updatedAcceptedMap);
+    const updatedSpecifics = { ...specificWeeks, [currentWeekId]: newGrid };
+    setSpecificWeeks(updatedSpecifics);
+
+    post("/api/schedule", {
+      specificWeeks: updatedSpecifics,
+      acceptedQuestsByWeek: updatedAcceptedMap,
+    }).then(() => {
+      setSaveMessage("🎉 Quest Accepted!");
+      setTimeout(() => setSaveMessage(""), 2000);
+    });
+  };
+
+  const handleIgnoreQuest = (questId) => {
+    const newIgnoredList = [...ignoredQuestIds, questId];
+    setIgnoredQuestIds(newIgnoredList);
+    setHoveredQuest(null);
+    post("/api/schedule", { ignoredQuestIds: newIgnoredList });
+  };
+
+  const handleRestoreQuest = (questId) => {
+    const newIgnoredList = ignoredQuestIds.filter((id) => id !== questId);
+    setIgnoredQuestIds(newIgnoredList);
+    post("/api/schedule", { ignoredQuestIds: newIgnoredList });
+  };
+
+  const handleUnacceptQuest = (quest) => {
+    const currentList = acceptedQuestsByWeek[currentWeekId] || [];
+    const newList = currentList.filter((q) => q.id !== quest.id);
+    const updatedAcceptedMap = { ...acceptedQuestsByWeek, [currentWeekId]: newList };
+    setAcceptedQuestsByWeek(updatedAcceptedMap);
+
+    let newGrid = JSON.parse(JSON.stringify(displayGrid));
+    for (let i = 0; i < quest.duration; i++) {
+      newGrid[quest.day][quest.startHour + i] = quest.type === "meal" ? 2 : 1;
+    }
+    const updatedSpecifics = { ...specificWeeks, [currentWeekId]: newGrid };
+    setSpecificWeeks(updatedSpecifics);
+
+    post("/api/schedule", {
+      specificWeeks: updatedSpecifics,
+      acceptedQuestsByWeek: updatedAcceptedMap,
+    });
+  };
 
   // --- EDIT HANDLERS ---
   const handleEditToggle = () => {
@@ -131,7 +239,6 @@ const Schedule = () => {
   };
 
   const handleClear = () => {
-    // Resets the entire temporary grid to 0 (Busy)
     setTempGrid(
       Array(7)
         .fill(null)
@@ -147,64 +254,80 @@ const Schedule = () => {
     setTempGrid(nextGrid);
   };
 
-  // --- SAVE LOGIC 1: SPECIFIC ---
+  // --- HELPER: REMOVE QUESTS THAT WERE OVERWRITTEN ---
+  const cleanupInvalidQuests = (newGrid, weekId) => {
+    const previouslyAccepted = acceptedQuestsByWeek[weekId] || [];
+    // Keep only quests where the grid cells are still "3" (Quest)
+    const validAccepted = previouslyAccepted.filter((quest) => {
+      for (let i = 0; i < quest.duration; i++) {
+        if (newGrid[quest.day][quest.startHour + i] !== 3) return false;
+      }
+      return true;
+    });
+
+    // If lists are different, return the cleaner list, else null
+    if (validAccepted.length !== previouslyAccepted.length) return validAccepted;
+    return null;
+  };
+
   const saveSpecific = () => {
-    const updated = { ...specificWeeks, [currentWeekId]: tempGrid };
-    setSpecificWeeks(updated);
-    post("/api/schedule", { specificWeeks: updated }).then(() => {
+    // 1. Clean up ghosts
+    const cleanedAcceptedList = cleanupInvalidQuests(tempGrid, currentWeekId);
+    let updatedAcceptedMap = acceptedQuestsByWeek;
+
+    if (cleanedAcceptedList) {
+      updatedAcceptedMap = { ...acceptedQuestsByWeek, [currentWeekId]: cleanedAcceptedList };
+      setAcceptedQuestsByWeek(updatedAcceptedMap);
+    }
+
+    // 2. Save
+    const updatedSpecifics = { ...specificWeeks, [currentWeekId]: tempGrid };
+    setSpecificWeeks(updatedSpecifics);
+
+    post("/api/schedule", {
+      specificWeeks: updatedSpecifics,
+      acceptedQuestsByWeek: updatedAcceptedMap, // Send cleaned list
+    }).then(() => {
       setSaveMessage("✅ Week Saved!");
       setIsEditing(false);
       setTimeout(() => setSaveMessage(""), 2000);
     });
   };
 
-  // --- SAVE LOGIC 2: RECURRING ---
   const initiateSaveRecurring = () => {
     const currentStart = getWeekStart(weekOffset);
     let hasFutureConflicts = false;
-
-    // Check strict inequality: keyDate > currentWeekStart
     Object.keys(specificWeeks).forEach((weekKey) => {
-      const weekDate = new Date(weekKey);
-      // We only care about weeks strictly in the future relative to the one we are editing
-      if (weekDate > currentStart) {
-        hasFutureConflicts = true;
-      }
+      if (new Date(weekKey) > currentStart) hasFutureConflicts = true;
     });
-
-    if (hasFutureConflicts) {
-      setShowOverwriteWarning(true);
-    } else {
-      performSaveRecurring();
-    }
+    if (hasFutureConflicts) setShowOverwriteWarning(true);
+    else performSaveRecurring();
   };
 
   const performSaveRecurring = () => {
     const currentStart = getWeekStart(weekOffset);
     let newSpecificWeeks = { ...specificWeeks };
 
-    // 1. FREEZE PAST: Keep history intact
+    // 1. Clean up ghosts for the CURRENT displayed week
+    const cleanedAcceptedList = cleanupInvalidQuests(tempGrid, currentWeekId);
+    let updatedAcceptedMap = { ...acceptedQuestsByWeek };
+
+    if (cleanedAcceptedList) {
+      updatedAcceptedMap[currentWeekId] = cleanedAcceptedList;
+      setAcceptedQuestsByWeek(updatedAcceptedMap);
+    }
+
+    // 2. Handle future/past split
     for (let i = -2; i < weekOffset; i++) {
       const pastWeekId = getWeekId(i);
-      if (!newSpecificWeeks[pastWeekId]) {
-        // If it was using the old template, save that state now
-        newSpecificWeeks[pastWeekId] = recurringSchedule;
-      }
+      if (!newSpecificWeeks[pastWeekId]) newSpecificWeeks[pastWeekId] = recurringSchedule;
     }
 
-    // 2. WIPE FUTURE: Delete any overrides that are later than this week
     Object.keys(newSpecificWeeks).forEach((weekKey) => {
-      const weekDate = new Date(weekKey);
-      if (weekDate > currentStart) {
-        delete newSpecificWeeks[weekKey];
-      }
+      if (new Date(weekKey) > currentStart) delete newSpecificWeeks[weekKey];
     });
 
-    // 3. WIPE CURRENT: Remove the specific override for *this* week too,
-    // since this week is becoming the new template source.
-    if (newSpecificWeeks[currentWeekId]) {
-      delete newSpecificWeeks[currentWeekId];
-    }
+    if (newSpecificWeeks[currentWeekId]) delete newSpecificWeeks[currentWeekId];
 
     setRecurringSchedule(tempGrid);
     setSpecificWeeks(newSpecificWeeks);
@@ -214,10 +337,109 @@ const Schedule = () => {
     post("/api/schedule", {
       schedule: tempGrid,
       specificWeeks: newSpecificWeeks,
+      acceptedQuestsByWeek: updatedAcceptedMap,
     }).then(() => {
       setSaveMessage("🔄 Template Updated!");
       setTimeout(() => setSaveMessage(""), 2000);
     });
+  };
+
+  // --- RENDER HELPERS ---
+  const renderQuestList = () => {
+    if (viewMode === "available") {
+      if (filteredQuests.length === 0)
+        return <div className="empty-msg">No quests match filters or schedule.</div>;
+      return filteredQuests.map((quest) => (
+        <div
+          key={quest.id}
+          className={`quest-card ${quest.type === "meal" ? "type-meal" : "type-activity"}`}
+          onMouseEnter={() => setHoveredQuest(quest)}
+          onMouseLeave={() => setHoveredQuest(null)}
+        >
+          <div className="quest-header">
+            <span className="quest-title">{quest.title}</span>
+            <span className="quest-score">Compatibility: {quest.matchPercent}%</span>
+          </div>
+          <div className="quest-time">
+            📅 {DAYS[quest.day]} • ⏰ {HOURS[quest.startHour].start} -{" "}
+            {HOURS[quest.startHour + quest.duration - 1].end}
+          </div>
+          <div className="quest-actions">
+            <button
+              className="quest-btn btn-accept"
+              disabled={isEditing}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAcceptQuest(quest);
+              }}
+            >
+              Accept
+            </button>
+            <button
+              className="quest-btn btn-ignore"
+              disabled={isEditing}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleIgnoreQuest(quest.id);
+              }}
+            >
+              Ignore
+            </button>
+          </div>
+        </div>
+      ));
+    }
+
+    if (viewMode === "accepted") {
+      if (currentAccepted.length === 0)
+        return <div className="empty-msg">No quests accepted for this week yet.</div>;
+      return currentAccepted.map((quest) => (
+        <div
+          key={quest.id}
+          className="quest-card accepted-card"
+          onMouseEnter={() => setHoveredQuest(quest)}
+          onMouseLeave={() => setHoveredQuest(null)}
+        >
+          <div className="quest-header">
+            <span className="quest-title">{quest.title}</span>
+            <span className="accepted-badge">✓ Active</span>
+          </div>
+          <div className="quest-time">
+            📅 {DAYS[quest.day]} • {HOURS[quest.startHour].start}
+          </div>
+          <button
+            className="quest-btn btn-ignore"
+            disabled={isEditing}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUnacceptQuest(quest);
+            }}
+          >
+            Cancel Quest
+          </button>
+        </div>
+      ));
+    }
+
+    if (viewMode === "ignored") {
+      if (currentIgnored.length === 0) return <div className="empty-msg">No ignored quests.</div>;
+      return currentIgnored.map((quest) => (
+        <div key={quest.id} className="quest-card ignored-card">
+          <div className="quest-header">
+            <span className="quest-title" style={{ color: "#999" }}>
+              {quest.title}
+            </span>
+          </div>
+          <button
+            className="quest-btn btn-restore"
+            disabled={isEditing}
+            onClick={() => handleRestoreQuest(quest.id)}
+          >
+            Restore
+          </button>
+        </div>
+      ));
+    }
   };
 
   return (
@@ -237,10 +459,7 @@ const Schedule = () => {
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
               className="nav-arrow"
-              onClick={() => {
-                setWeekOffset(weekOffset - 1);
-                handleCancel();
-              }}
+              onClick={() => handleWeekChange(-1)}
               disabled={weekOffset <= -2}
             >
               &#9664;
@@ -260,10 +479,7 @@ const Schedule = () => {
             </div>
             <button
               className="nav-arrow"
-              onClick={() => {
-                setWeekOffset(weekOffset + 1);
-                handleCancel();
-              }}
+              onClick={() => handleWeekChange(1)}
               disabled={weekOffset >= 3}
             >
               &#9654;
@@ -281,7 +497,6 @@ const Schedule = () => {
                 {saveMessage}
               </span>
             )}
-
             {!isPast &&
               (!isEditing ? (
                 <button
@@ -293,70 +508,31 @@ const Schedule = () => {
                 </button>
               ) : (
                 <>
-                  {/* Warning State */}
                   {showOverwriteWarning ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        background: "#ffebee",
-                        padding: "5px 10px",
-                        borderRadius: "8px",
-                        border: "1px solid #ef5350",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.75rem", color: "#c62828", fontWeight: "bold" }}>
-                        Overwrite future changes?
-                      </span>
-                      <button
-                        className="save-button"
-                        style={{ background: "#ef5350", fontSize: "0.75rem", padding: "4px 8px" }}
-                        onClick={performSaveRecurring}
-                      >
-                        Yes, Overwrite
+                    <div className="overwrite-warning">
+                      <span>Overwrite future?</span>
+                      <button className="save-button warning-yes" onClick={performSaveRecurring}>
+                        Yes
                       </button>
                       <button
-                        className="save-button"
-                        style={{ background: "#333", fontSize: "0.75rem", padding: "4px 8px" }}
+                        className="save-button warning-no"
                         onClick={() => setShowOverwriteWarning(false)}
                       >
                         No
                       </button>
                     </div>
                   ) : (
-                    // Normal Edit State
                     <>
-                      <button
-                        className="save-button"
-                        style={{
-                          background: "#fff",
-                          color: "#d32f2f",
-                          border: "1px solid #d32f2f",
-                        }}
-                        onClick={handleClear}
-                      >
+                      <button className="save-button btn-clear" onClick={handleClear}>
                         🗑️ Clear
                       </button>
-                      <button
-                        className="save-button"
-                        style={{ background: "#eee", color: "#333" }}
-                        onClick={handleCancel}
-                      >
+                      <button className="save-button btn-cancel" onClick={handleCancel}>
                         Cancel
                       </button>
-                      <button
-                        className="save-button"
-                        style={{ background: "#2196f3" }}
-                        onClick={saveSpecific}
-                      >
-                        Only This Week
+                      <button className="save-button btn-specific" onClick={saveSpecific}>
+                        Save for This Week
                       </button>
-                      <button
-                        className="save-button"
-                        style={{ background: "#333" }}
-                        onClick={initiateSaveRecurring}
-                      >
+                      <button className="save-button btn-recurring" onClick={initiateSaveRecurring}>
                         Save Recurring
                       </button>
                     </>
@@ -412,7 +588,7 @@ const Schedule = () => {
             <div className="legend-box" style={{ background: "#66bb6a" }} /> Free
           </div>
           <div className="legend-item">
-            <div className="legend-box" style={{ background: "#ffca28" }} /> Meal
+            <div className="legend-box" style={{ background: "#ffca28" }} /> Meals Exclusively
           </div>
           <div className="legend-item">
             <div className="legend-box" style={{ background: "#2196f3" }} /> Quest
@@ -423,31 +599,70 @@ const Schedule = () => {
         </div>
       </div>
 
-      {/* Right Column (Quests) */}
+      {/* Right Column */}
       <div className="schedule-right-column">
-        <h3 style={{ marginTop: 0 }}>Available Quests</h3>
-        <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "20px" }}>
-          Based on your free slots for this week.
-        </p>
-        <div className="quest-list">
-          {filteredQuests.map((quest) => (
-            <div
-              key={quest.id}
-              className={`quest-card ${quest.type === "meal" ? "type-meal" : "type-activity"}`}
-              onMouseEnter={() => setHoveredQuest(quest)}
-              onMouseLeave={() => setHoveredQuest(null)}
-            >
-              <div className="quest-header">
-                <span className="quest-title">{quest.title}</span>
-                <span className="quest-score">{quest.matchPercent}%</span>
-              </div>
-              <div className="quest-time">
-                📅 {DAYS[quest.day]} • ⏰ {HOURS[quest.startHour].start} -{" "}
-                {HOURS[quest.startHour + quest.duration - 1].end}
-              </div>
-            </div>
-          ))}
+        {/* Tabs */}
+        <div className="quest-tabs">
+          <button
+            className={`tab-btn ${viewMode === "available" ? "active" : ""}`}
+            onClick={() => handleTabChange("available")}
+          >
+            Available
+          </button>
+
+          <button
+            className={`tab-btn ${viewMode === "accepted" ? "active" : ""}`}
+            onClick={() => handleTabChange("accepted")}
+          >
+            Accepted{getTabBadge(currentAccepted.length)}
+          </button>
+
+          <button
+            className={`tab-btn ${viewMode === "ignored" ? "active" : ""}`}
+            onClick={() => handleTabChange("ignored")}
+          >
+            Ignored{getTabBadge(currentIgnored.length)}
+          </button>
         </div>
+
+        {isEditing && (
+          <div className="edit-mode-warning">⚠️ Finish editing before you accept quests!</div>
+        )}
+
+        {!isEditing && viewMode === "available" && (
+          <div className="compatibility-controls">
+            <label>
+              Min Compatibility: <strong>{minCompatibility}%</strong>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={minCompatibility}
+              onChange={(e) => setMinCompatibility(Number(e.target.value))}
+            />
+            <label
+              style={{
+                marginTop: "10px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                fontSize: "0.85rem",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={hideMeals}
+                onChange={(e) => setHideMeals(e.target.checked)}
+                style={{ marginRight: "8px" }}
+              />
+              Hide Meal Options
+            </label>
+          </div>
+        )}
+
+        <div className="quest-list">{renderQuestList()}</div>
       </div>
     </div>
   );
