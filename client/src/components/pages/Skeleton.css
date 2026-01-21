@@ -1,1 +1,155 @@
-/* Fill me in :) */
+/* GLOBAL CONTAINER */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  background-color: #f0f2f5; /* Slightly darker grey to make white bubbles pop */
+  font-family: "Inter", system-ui, sans-serif;
+  color: #333;
+}
+
+/* --- THE "BUBBLE" STYLE --- */
+/* Applies to Header, Text Sections, and Dashboard Buttons */
+.bubble-card {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Soft shadow */
+  width: 100%;
+  max-width: 800px; /* Prevents text from getting too wide */
+  margin-bottom: 24px; /* Space between bubbles */
+  box-sizing: border-box;
+}
+
+/* --- LOGGED OUT (LANDING PAGE) --- */
+.landing-header {
+  text-align: center;
+  padding: 40px;
+}
+
+.landing-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Text Sections */
+.info-bubble {
+  text-align: left;
+  border-left: 6px solid #2196f3; /* Blue accent on the left */
+}
+
+.info-heading {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-text {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #555;
+  margin: 0;
+}
+
+/* --- LOGGED IN (DASHBOARD) --- */
+.dashboard-header-bubble {
+  text-align: center;
+  border-bottom: 6px solid #333; /* Dark accent bottom */
+}
+
+.greeting {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.date-display {
+  font-size: 1.1rem;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+/* THE GRID FOR BUTTON BUBBLES */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Bigger buttons */
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+}
+
+/* DASHBOARD BUTTONS (Interactive Bubbles) */
+.dashboard-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  padding: 40px 20px;
+  border-radius: 20px;
+  text-decoration: none; /* No link underline */
+  color: #333;
+
+  /* Initial State */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  cursor: pointer;
+  border: 2px solid transparent; /* Invisible border for sizing */
+}
+
+/* Hover State - Lifts up and glows */
+.dashboard-btn:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  border-color: #eee;
+}
+
+/* Icons */
+.btn-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+}
+
+.btn-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.btn-desc {
+  font-size: 1rem;
+  color: #666;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Specific Colors for Bubbles (Optional borders or accents) */
+.btn-schedule:hover {
+  color: #4caf50;
+}
+.btn-quest:hover {
+  color: #9c27b0;
+}
+.btn-profile:hover {
+  color: #ff9800;
+}
+.btn-history:hover {
+  color: #607d8b;
+}

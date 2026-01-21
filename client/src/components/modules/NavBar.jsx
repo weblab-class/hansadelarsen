@@ -17,6 +17,8 @@ const NavBar = () => {
         return "My Profile";
       case "/schedule":
         return "Schedule";
+      case "/history":
+        return "History";
       case "/about":
         return "About";
       case "/quest-share":
@@ -37,33 +39,45 @@ const NavBar = () => {
 
       {/* 2. Right Side Controls */}
       <div className="NavBar-controls">
-        {userId ? (
-          <>
-            {/* A. Hamburger Menu (First) */}
-            <button className="hamburger-btn" onClick={toggleMenu} style={{ marginRight: "20px" }}>
-              ☰
-            </button>
+        {/* A. IF LOGGED IN: Show Profile Pic */}
+        {userId && (
+          <Link
+            to="/profile"
+            className="nav-profile-pic"
+            title="Go to Profile"
+            style={{ marginRight: "20px" }}
+          >
+            👤
+          </Link>
+        )}
 
-            {/* B. Profile Icon (Second) */}
-            <Link to="/profile" className="nav-profile-pic" title="Go to Profile">
-              👤
+        {/* B. IF LOGGED OUT: Show Google Login Button */}
+        {!userId && (
+          <div className="auth-container" style={{ marginRight: "20px" }}>
+            <GoogleLogin onSuccess={handleLogin} onError={() => console.log("Login Failed")} />
+          </div>
+        )}
+
+        {/* C. HAMBURGER (ALWAYS VISIBLE) */}
+        <button className="hamburger-btn" onClick={toggleMenu}>
+          ☰
+        </button>
+
+        {/* D. DROPDOWN MENU */}
+        {menuOpen && (
+          <div className="nav-dropdown">
+            {/* PUBLIC LINKS (Always visible) */}
+            <Link to="/" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
+              Home
             </Link>
 
-            {/* C. The Dropdown */}
-            {/* C. The Dropdown */}
-            {menuOpen && (
-              <div className="nav-dropdown">
-                {/* 1. About */}
-                <Link to="/about" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
-                  About
-                </Link>
+            <Link to="/about" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
+              About
+            </Link>
 
-                {/* 2. Home */}
-                <Link to="/" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
-                  Home
-                </Link>
-
-                {/* 3. Schedule (MAKE SURE THIS IS HERE) */}
+            {/* PROTECTED LINKS (Only if logged in) */}
+            {userId && (
+              <>
                 <Link
                   to="/schedule"
                   className="nav-dropdown-link"
@@ -71,6 +85,7 @@ const NavBar = () => {
                 >
                   Schedule
                 </Link>
+
                 <Link
                   to="/history"
                   className="nav-dropdown-link"
@@ -79,7 +94,6 @@ const NavBar = () => {
                   History
                 </Link>
 
-                {/* 4. Quest Share */}
                 <Link
                   to="/quest-share"
                   className="nav-dropdown-link"
@@ -88,10 +102,18 @@ const NavBar = () => {
                   Quest Share
                 </Link>
 
-                {/* 5. Logout */}
+                <Link
+                  to="/profile"
+                  className="nav-dropdown-link"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+
+                {/* Logout Button */}
                 <div
                   className="nav-dropdown-link"
-                  style={{ color: "red", cursor: "pointer" }}
+                  style={{ color: "red", cursor: "pointer", borderTop: "1px solid #eee" }}
                   onClick={() => {
                     handleLogout();
                     setMenuOpen(false);
@@ -99,12 +121,8 @@ const NavBar = () => {
                 >
                   Logout
                 </div>
-              </div>
+              </>
             )}
-          </>
-        ) : (
-          <div className="auth-container">
-            <GoogleLogin onSuccess={handleLogin} onError={() => console.log("Login Failed")} />
           </div>
         )}
       </div>

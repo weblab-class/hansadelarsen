@@ -15,6 +15,10 @@ import Profile from "./components/pages/Profile";
 import Schedule from "./components/pages/Schedule";
 import History from "./components/pages/History";
 
+// --- IMPORT THE NEW PAGES ---
+import About from "./components/pages/About";
+import QuestShare from "./components/pages/QuestShare";
+
 const GOOGLE_CLIENT_ID = "683928089193-dr9ot0qlnslqbl900muqnpcohvrglua9.apps.googleusercontent.com";
 
 const router = createBrowserRouter(
@@ -24,6 +28,10 @@ const router = createBrowserRouter(
       <Route path="/profile" element={<Profile />} />
       <Route path="/schedule" element={<Schedule />} />
       <Route path="/history" element={<History />} />
+
+      {/* --- ADD THE NEW ROUTES --- */}
+      <Route path="/about" element={<About />} />
+      <Route path="/quest-share" element={<QuestShare />} />
     </Route>
   )
 );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "../App";
 import { get } from "../../utilities";
-import "./Schedule.css"; // Reuse the exact same CSS
+import "./Schedule.css";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = [
@@ -38,16 +38,27 @@ const MONTHS = [
   "December",
 ];
 
+const CUTOFF_DATE = new Date("2026-01-01");
+
 const History = () => {
   const { userId } = useContext(UserContext);
 
-  // --- STATE ---
-  // Default to current date
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
-  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0); // Index of the week within that month
+  // --- REAL TIME CONSTANTS ---
+  const today = new Date();
+  const realCurrentYear = today.getFullYear();
+  const realCurrentMonth = today.getMonth();
 
-  // Data State
+  // Calculate the "Real" Current Monday to stop future navigation
+  const dayOfWeek = today.getDay() || 7;
+  const realCurrentMonday = new Date(today);
+  realCurrentMonday.setDate(today.getDate() - dayOfWeek + 1);
+  realCurrentMonday.setHours(0, 0, 0, 0);
+
+  // --- STATE ---
+  const [selectedYear, setSelectedYear] = useState(realCurrentYear);
+  const [selectedMonth, setSelectedMonth] = useState(realCurrentMonth);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
+
   const [recurringSchedule, setRecurringSchedule] = useState(
     Array(7)
       .fill(null)
@@ -55,26 +66,17 @@ const History = () => {
   );
   const [specificWeeks, setSpecificWeeks] = useState({});
 
-  // --- HELPERS: Calculate Weeks in a Month ---
+  // --- HELPER: Get Weeks in Month ---
   const getWeeksInMonth = (year, month) => {
     const weeks = [];
-
-    // Start at the 1st of the month
     let date = new Date(year, month, 1);
-
-    // Adjust to find the Monday of that week (even if it's in the previous month)
-    // If the 1st is a Tuesday (2), we go back 1 day to Monday.
-    const day = date.getDay() || 7; // Sunday=7
+    const day = date.getDay() || 7;
     date.setDate(date.getDate() - day + 1);
 
-    // Now iterate forward adding 7 days until we are fully into the NEXT month
-    // We stop when the Monday is in the next month
     while (date.getMonth() <= month || (date.getMonth() > month && date.getFullYear() < year)) {
-      // Edge case for December to January transition
       if (date.getFullYear() > year) break;
       if (date.getFullYear() === year && date.getMonth() > month) break;
-
-      weeks.push(new Date(date)); // Store the Monday date object
+      weeks.push(new Date(date));
       date.setDate(date.getDate() + 7);
     }
     return weeks;
@@ -82,14 +84,67 @@ const History = () => {
 
   const weeksList = getWeeksInMonth(selectedYear, selectedMonth);
 
-  // Ensure selectedWeekIndex is valid when month changes
+  // --- STATE CORRECTION (THE FIX) ---
   useEffect(() => {
+    // 1. CONSTRAINT: If we switched to current year, but the old month is in the future...
+    if (selectedYear === realCurrentYear && selectedMonth > realCurrentMonth) {
+      // Snap back to the real current month
+      setSelectedMonth(realCurrentMonth);
+    }
+
+    // 2. ALWAYS reset to the first week when context changes
     setSelectedWeekIndex(0);
   }, [selectedYear, selectedMonth]);
 
-  // --- GET DATA FOR CURRENT VIEW ---
-  const currentWeekStart = weeksList[selectedWeekIndex] || new Date();
+  // --- ARROW HANDLERS ---
+  const handlePrevWeek = () => {
+    if (selectedWeekIndex > 0) {
+      setSelectedWeekIndex(selectedWeekIndex - 1);
+    } else {
+      let newMonth = selectedMonth - 1;
+      let newYear = selectedYear;
+
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear = selectedYear - 1;
+      }
+
+      const prevMonthWeeks = getWeeksInMonth(newYear, newMonth);
+      setSelectedYear(newYear);
+      setSelectedMonth(newMonth);
+      setSelectedWeekIndex(prevMonthWeeks.length - 1);
+    }
+  };
+
+  const handleNextWeek = () => {
+    if (selectedWeekIndex < weeksList.length - 1) {
+      setSelectedWeekIndex(selectedWeekIndex + 1);
+    } else {
+      let newMonth = selectedMonth + 1;
+      let newYear = selectedYear;
+
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear = selectedYear + 1;
+      }
+
+      setSelectedYear(newYear);
+      setSelectedMonth(newMonth);
+      setSelectedWeekIndex(0);
+    }
+  };
+
+  // --- DERIVED VIEW DATA ---
+  const safeIndex = Math.min(selectedWeekIndex, weeksList.length - 1);
+  const currentWeekStart = weeksList[safeIndex] || new Date();
+  currentWeekStart.setHours(0, 0, 0, 0);
+
   const currentWeekId = currentWeekStart.toDateString();
+
+  // Can we go forward?
+  const nextWeekCheck = new Date(currentWeekStart);
+  nextWeekCheck.setDate(nextWeekCheck.getDate() + 7);
+  const isFuture = nextWeekCheck > realCurrentMonday;
 
   const getDateForColumn = (colIndex) => {
     const target = new Date(currentWeekStart);
@@ -112,9 +167,14 @@ const History = () => {
   }, [userId]);
 
   // --- VIEW LOGIC ---
-  // If specific data existed for that past week, use it. Otherwise use template.
+  const emptyGrid = Array(7)
+    .fill(null)
+    .map(() => Array(16).fill(0));
   let displayGrid = recurringSchedule;
-  if (specificWeeks[currentWeekId]) {
+
+  if (currentWeekStart < CUTOFF_DATE) {
+    displayGrid = emptyGrid;
+  } else if (specificWeeks[currentWeekId]) {
     displayGrid = specificWeeks[currentWeekId];
   }
 
@@ -123,6 +183,8 @@ const History = () => {
     if (val === 2) return "grid-cell cell-meal";
     return "grid-cell cell-busy";
   };
+
+  const isBeforeCutoff = currentWeekStart < CUTOFF_DATE;
 
   return (
     <div className="schedule-container">
@@ -138,15 +200,25 @@ const History = () => {
           padding: "16px",
           borderRadius: "12px",
           boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          alignItems: "center",
         }}
       >
+        {/* PREV ARROW */}
+        <button className="nav-arrow" onClick={handlePrevWeek}>
+          &#9664;
+        </button>
+
         {/* YEAR SELECTOR */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           <label style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#666" }}>Year</label>
           <input
             type="number"
             value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            max={realCurrentYear}
+            onChange={(e) => {
+              const val = parseInt(e.target.value);
+              if (val <= realCurrentYear) setSelectedYear(val);
+            }}
             style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc", width: "80px" }}
           />
         </div>
@@ -164,11 +236,14 @@ const History = () => {
               minWidth: "120px",
             }}
           >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i}>
-                {m}
-              </option>
-            ))}
+            {MONTHS.map((m, i) => {
+              if (selectedYear === realCurrentYear && i > realCurrentMonth) return null;
+              return (
+                <option key={m} value={i}>
+                  {m}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -176,11 +251,13 @@ const History = () => {
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
           <label style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#666" }}>Week Of</label>
           <select
-            value={selectedWeekIndex}
+            value={safeIndex}
             onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
             style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc", width: "100%" }}
           >
             {weeksList.map((date, i) => {
+              if (date > realCurrentMonday) return null;
+
               const end = new Date(date);
               end.setDate(date.getDate() + 6);
               return (
@@ -191,15 +268,34 @@ const History = () => {
             })}
           </select>
         </div>
+
+        {/* NEXT ARROW */}
+        <button
+          className="nav-arrow"
+          onClick={handleNextWeek}
+          disabled={isFuture}
+          style={{ opacity: isFuture ? 0.3 : 1, cursor: isFuture ? "default" : "pointer" }}
+        >
+          &#9654;
+        </button>
       </div>
 
       <p className="subtitle">
-        Viewing historic record. <span style={{ color: "#777" }}>Read Only.</span>
+        {isBeforeCutoff ? (
+          <span>No records exist before Jan 1, 2026.</span>
+        ) : (
+          <span>
+            Viewing historic record. <span style={{ color: "#777" }}>Read Only.</span>
+          </span>
+        )}
       </p>
 
-      {/* --- THE GRID (ALWAYS DISABLED/GRAY) --- */}
+      {/* --- THE GRID --- */}
       {userId ? (
-        <div className="schedule-grid disabled" style={{ border: "2px solid #ccc" }}>
+        <div
+          className="schedule-grid disabled"
+          style={{ border: "2px solid #ccc", opacity: isBeforeCutoff ? 0.4 : 0.7 }}
+        >
           <div className="grid-header" style={{ background: "#777" }}>
             Time
           </div>
@@ -219,7 +315,6 @@ const History = () => {
                 <div
                   key={`${dIndex}-${hIndex}`}
                   className={getCellClass(displayGrid[dIndex][hIndex])}
-                  // No onClick handler here (It's read only)
                 />
               ))}
             </React.Fragment>
