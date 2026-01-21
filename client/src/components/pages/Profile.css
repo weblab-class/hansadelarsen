@@ -1,39 +1,145 @@
 .profile-page-container {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 16px;
+  justify-content: center;
+  padding: 40px;
+  background-color: #f7f9fc;
+
+  /* --- SCROLLING LOGIC (X and Y) --- */
   min-height: 100vh;
-  background-color: #f7f9fc; /* Light grey background */
+  width: 100%;
+  box-sizing: border-box;
+
+  /* If window < 1000px wide OR < 700px tall, show scrollbars */
+  overflow: auto;
 }
 
-.profile-section {
+.profile-grid {
+  display: grid;
+  /* CHANGED: Middle column increased from 280px to 360px */
+  grid-template-columns: 1fr 360px 1fr;
+  gap: 32px;
+
+  /* --- SCALING LIMITS --- */
+  width: 100%;
+  max-width: 1400px;
+
+  /* Horizontal Stop: Stop shrinking width at 1000px */
+  min-width: 1000px;
+
+  /* Vertical Stop: Stop shrinking height at 700px */
+  min-height: 700px;
+
+  /* Vertical Scaling: Stretch to fill window minus padding */
+  height: calc(100vh - 80px);
+
+  align-items: stretch;
+}
+
+/* Common Card Style */
+.profile-card {
   background: white;
   padding: 32px;
-  border-radius: 16px; /* Soft rounded corners */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle drop shadow */
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  /* Fill the grid cell height */
+  height: 100%;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  /* This pushes the Save Button to the bottom (Vertical Spacing) */
+  justify-content: space-between;
+}
+
+/* --- Left Column: Personal Details --- */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.input-group label {
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+  color: #555;
+}
+
+.input-group input,
+.input-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
   width: 100%;
-  max-width: 500px; /* Prevents it from getting too wide */
+  box-sizing: border-box;
 }
 
-h1 {
-  margin-bottom: 8px;
+/* --- Center Column: Avatar --- */
+.middle-column {
+  display: flex;
+  flex-direction: column;
+  /* Centers the avatar vertically relative to the tall side columns */
+  justify-content: center;
+  height: 100%;
+}
+
+.avatar-card {
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  /* No fixed height here, it sizes to content */
+}
+
+.avatar-circle {
+  /* CHANGED: Increased size from 140px to 180px */
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background-color: #eee;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: #888;
+  border: 4px solid white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.display-name {
+  font-size: 1.6rem;
+  font-weight: bold;
   color: #333;
-  text-align: center;
+  margin: 0;
+  word-break: break-word;
 }
 
-.subtitle {
-  margin-top: 0;
-  margin-bottom: 32px;
+.age-text {
   color: #666;
-  text-align: center;
+  font-weight: 500;
+  margin-top: 4px;
+  font-size: 1.1rem;
 }
 
+/* --- Right Column: Preferences --- */
+.preferences-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* RESTORED: Original dark button style */
 .save-button {
-  margin-top: 32px;
+  margin-top: 24px;
   width: 100%;
   padding: 12px;
-  background-color: #333; /* Dark button */
+  background-color: #333;
   color: white;
   border: none;
   border-radius: 8px;
@@ -44,8 +150,10 @@ h1 {
 }
 
 .save-button:hover {
-  background-color: #555; /* Lighter on hover */
+  background-color: #555;
 }
+
+/* RESTORED: Original row layout */
 .setting-row {
   display: flex;
   justify-content: space-between;
@@ -54,9 +162,11 @@ h1 {
   width: 100%;
 }
 
+/* RESTORED: Small Age Input style */
 .age-input {
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
   width: 60px;
+  text-align: center;
 }
