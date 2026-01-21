@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useContext } from "react";
 import { UserContext } from "../App";
 import { get, post } from "../../utilities";
+import { generateQuests } from "./QuestData";
 import "./Schedule.css";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = [
-  "8 AM",
-  "9 AM",
-  "10 AM",
-  "11 AM",
-  "12 PM",
-  "1 PM",
-  "2 PM",
-  "3 PM",
-  "4 PM",
-  "5 PM",
-  "6 PM",
-  "7 PM",
-  "8 PM",
-  "9 PM",
-  "10 PM",
-  "11 PM",
+  { start: "8 AM", end: "9 AM" },
+  { start: "9 AM", end: "10 AM" },
+  { start: "10 AM", end: "11 AM" },
+  { start: "11 AM", end: "12 PM" },
+  { start: "12 PM", end: "1 PM" },
+  { start: "1 PM", end: "2 PM" },
+  { start: "2 PM", end: "3 PM" },
+  { start: "3 PM", end: "4 PM" },
+  { start: "4 PM", end: "5 PM" },
+  { start: "5 PM", end: "6 PM" },
+  { start: "6 PM", end: "7 PM" },
+  { start: "7 PM", end: "8 PM" },
+  { start: "8 PM", end: "9 PM" },
+  { start: "9 PM", end: "10 PM" },
+  { start: "10 PM", end: "11 PM" },
+  { start: "11 PM", end: "12 AM" },
 ];
 
 const Schedule = () => {
@@ -28,300 +29,426 @@ const Schedule = () => {
   const [saveMessage, setSaveMessage] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // --- STATE ---
+  // --- DATA STATE ---
   const [recurringSchedule, setRecurringSchedule] = useState(
     Array(7)
       .fill(null)
       .map(() => Array(16).fill(0))
   );
   const [specificWeeks, setSpecificWeeks] = useState({});
-  const [isRecurringMode, setIsRecurringMode] = useState(true);
+
+  // --- QUEST STATE ---
+  const [allGeneratedQuests, setAllGeneratedQuests] = useState([]);
+  const [filteredQuests, setFilteredQuests] = useState([]);
+  const [hoveredQuest, setHoveredQuest] = useState(null);
+
+  // --- EDIT STATE ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempGrid, setTempGrid] = useState(null);
+  const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
 
   // --- DATE HELPERS ---
-  const getWeekStart = (offset) => {
+  const getWeekStart = (off) => {
     const current = new Date();
     const day = current.getDay() || 7;
     const startOfWeek = new Date(current);
-    startOfWeek.setDate(current.getDate() - day + 1);
-    startOfWeek.setDate(startOfWeek.getDate() + offset * 7);
+    startOfWeek.setDate(current.getDate() - day + 1 + off * 7);
+    startOfWeek.setHours(0, 0, 0, 0); // Normalize time
     return startOfWeek;
   };
 
-  const getWeekId = (offset) => {
-    return getWeekStart(offset).toDateString();
-  };
+  const getWeekId = (off) => getWeekStart(off).toDateString();
 
-  const getWeekRangeString = (offset) => {
-    const start = getWeekStart(offset);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const options = { month: "short", day: "numeric" };
-    const year =
-      start.getFullYear() !== end.getFullYear()
-        ? `, ${end.getFullYear()}`
-        : `, ${start.getFullYear()}`;
-    return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", options)}${year}`;
-  };
-
-  const getDateForColumn = (offset, colIndex) => {
-    const start = getWeekStart(offset);
+  const getDateForColumn = (off, col) => {
+    const start = getWeekStart(off);
     const target = new Date(start);
-    target.setDate(start.getDate() + colIndex);
+    target.setDate(start.getDate() + col);
     return target.getDate();
   };
 
-  const getWeekStatusLabel = (offset) => {
-    if (offset < 0) return "Past Week (Read Only)";
-    if (offset === 0) return "Current Week";
-    if (offset === 1) return "Next Week";
-    return `${offset} Weeks Ahead`;
+  const getWeekRangeString = (off) => {
+    const start = getWeekStart(off);
+    const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const options = { month: "short", day: "numeric" };
+    return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", options)}`;
   };
 
-  // --- FETCH DATA ---
+  const getWeekLabel = (off) => {
+    if (off === 0) return { text: "Present Week", color: "#2196f3" };
+    if (off === -1) return { text: "Last Week", color: "#777" };
+    if (off === -2) return { text: "2 Weeks Ago", color: "#999" };
+    if (off === 1) return { text: "Next Week", color: "#66bb6a" };
+    return { text: `In ${off} Weeks`, color: "#ffa000" };
+  };
+
+  const jumpToToday = () => {
+    setWeekOffset(0);
+    setIsEditing(false);
+  };
+
+  // --- FETCH ---
   useEffect(() => {
     if (userId) {
       get("/api/whoami").then((user) => {
-        if (user.schedule && user.schedule.length === 7) {
-          setRecurringSchedule(user.schedule);
-        }
-        if (user.specificWeeks) {
-          setSpecificWeeks(user.specificWeeks);
-        }
+        if (user.schedule) setRecurringSchedule(user.schedule);
+        if (user.specificWeeks) setSpecificWeeks(user.specificWeeks);
+        setAllGeneratedQuests(generateQuests(user.preferences || {}));
       });
     }
   }, [userId]);
 
-  // --- VIEW LOGIC ---
+  // --- DISPLAY LOGIC ---
   const currentWeekId = getWeekId(weekOffset);
-  let displayGrid = recurringSchedule;
-  if (specificWeeks[currentWeekId]) {
-    displayGrid = specificWeeks[currentWeekId];
-  }
+  const isPast = weekOffset < 0;
+  const displayGrid = isEditing ? tempGrid : specificWeeks[currentWeekId] || recurringSchedule;
 
-  // --- HANDLERS ---
-  const handleCellClick = (dayIndex, hourIndex) => {
-    if (weekOffset < 0) return; // Block Past Edits
+  // --- QUEST LOGIC ---
+  useEffect(() => {
+    if (!allGeneratedQuests.length) return;
+    const validQuests = allGeneratedQuests.filter((quest) => {
+      for (let h = 0; h < quest.duration; h++) {
+        const hourIndex = quest.startHour + h;
+        if (hourIndex >= 16) return false;
+        const val = displayGrid[quest.day][hourIndex];
+        if (val === 0 || val === 3) return false;
+        if (val === 2 && quest.type !== "meal") return false;
+      }
+      return true;
+    });
+    setFilteredQuests(validQuests.sort((a, b) => b.matchPercent - a.matchPercent));
+  }, [allGeneratedQuests, displayGrid]);
 
-    let newGrid = displayGrid.map((row) => [...row]);
-    const currentVal = newGrid[dayIndex][hourIndex];
-    newGrid[dayIndex][hourIndex] = (currentVal + 1) % 3;
-
-    if (isRecurringMode) {
-      setRecurringSchedule(newGrid);
-    } else {
-      setSpecificWeeks((prev) => ({
-        ...prev,
-        [currentWeekId]: newGrid,
-      }));
-    }
+  // --- EDIT HANDLERS ---
+  const handleEditToggle = () => {
+    setTempGrid(JSON.parse(JSON.stringify(displayGrid)));
+    setIsEditing(true);
+    setShowOverwriteWarning(false);
   };
 
-  const handleSave = () => {
-    if (weekOffset < 0) return;
+  const handleCancel = () => {
+    setIsEditing(false);
+    setShowOverwriteWarning(false);
+  };
 
-    let payload = {};
-    if (isRecurringMode) {
-      const hasFutureData = Object.keys(specificWeeks).length > 0;
-      if (hasFutureData) {
-        const confirmOverwrite = window.confirm(
-          "⚠️ Warning: Saving this Recurring Schedule will overwrite your future specific plans.\nContinue?"
-        );
-        if (!confirmOverwrite) return;
-      }
-      payload = { schedule: recurringSchedule, specificWeeks: {} };
-      setSpecificWeeks({});
-    } else {
-      payload = { specificWeeks: specificWeeks };
-    }
+  const handleClear = () => {
+    // Resets the entire temporary grid to 0 (Busy)
+    setTempGrid(
+      Array(7)
+        .fill(null)
+        .map(() => Array(16).fill(0))
+    );
+  };
 
-    post("/api/schedule", payload).then(() => {
-      setSaveMessage(isRecurringMode ? "✅ Saved!" : "✅ Saved!");
+  const handleCellClick = (d, h) => {
+    if (!isEditing || isPast) return;
+    const nextGrid = tempGrid.map((row, rIdx) =>
+      rIdx === d ? row.map((cell, cIdx) => (cIdx === h ? (cell + 1) % 3 : cell)) : row
+    );
+    setTempGrid(nextGrid);
+  };
+
+  // --- SAVE LOGIC 1: SPECIFIC ---
+  const saveSpecific = () => {
+    const updated = { ...specificWeeks, [currentWeekId]: tempGrid };
+    setSpecificWeeks(updated);
+    post("/api/schedule", { specificWeeks: updated }).then(() => {
+      setSaveMessage("✅ Week Saved!");
+      setIsEditing(false);
       setTimeout(() => setSaveMessage(""), 2000);
     });
   };
 
-  const getCellClass = (val) => {
-    if (val === 1) return "grid-cell cell-free";
-    if (val === 2) return "grid-cell cell-meal";
-    return "grid-cell cell-busy";
+  // --- SAVE LOGIC 2: RECURRING ---
+  const initiateSaveRecurring = () => {
+    const currentStart = getWeekStart(weekOffset);
+    let hasFutureConflicts = false;
+
+    // Check strict inequality: keyDate > currentWeekStart
+    Object.keys(specificWeeks).forEach((weekKey) => {
+      const weekDate = new Date(weekKey);
+      // We only care about weeks strictly in the future relative to the one we are editing
+      if (weekDate > currentStart) {
+        hasFutureConflicts = true;
+      }
+    });
+
+    if (hasFutureConflicts) {
+      setShowOverwriteWarning(true);
+    } else {
+      performSaveRecurring();
+    }
   };
 
-  const isPast = weekOffset < 0;
+  const performSaveRecurring = () => {
+    const currentStart = getWeekStart(weekOffset);
+    let newSpecificWeeks = { ...specificWeeks };
+
+    // 1. FREEZE PAST: Keep history intact
+    for (let i = -2; i < weekOffset; i++) {
+      const pastWeekId = getWeekId(i);
+      if (!newSpecificWeeks[pastWeekId]) {
+        // If it was using the old template, save that state now
+        newSpecificWeeks[pastWeekId] = recurringSchedule;
+      }
+    }
+
+    // 2. WIPE FUTURE: Delete any overrides that are later than this week
+    Object.keys(newSpecificWeeks).forEach((weekKey) => {
+      const weekDate = new Date(weekKey);
+      if (weekDate > currentStart) {
+        delete newSpecificWeeks[weekKey];
+      }
+    });
+
+    // 3. WIPE CURRENT: Remove the specific override for *this* week too,
+    // since this week is becoming the new template source.
+    if (newSpecificWeeks[currentWeekId]) {
+      delete newSpecificWeeks[currentWeekId];
+    }
+
+    setRecurringSchedule(tempGrid);
+    setSpecificWeeks(newSpecificWeeks);
+    setIsEditing(false);
+    setShowOverwriteWarning(false);
+
+    post("/api/schedule", {
+      schedule: tempGrid,
+      specificWeeks: newSpecificWeeks,
+    }).then(() => {
+      setSaveMessage("🔄 Template Updated!");
+      setTimeout(() => setSaveMessage(""), 2000);
+    });
+  };
 
   return (
-    <div className="schedule-container">
-      {/* 1. DATE NAV */}
-      <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "8px" }}>
-        <button
-          className="nav-arrow"
-          onClick={() => setWeekOffset(weekOffset - 1)}
-          disabled={weekOffset <= -2}
-          style={{ opacity: weekOffset <= -2 ? 0.3 : 1 }}
-        >
-          &#9664;
-        </button>
-
-        <div style={{ textAlign: "center" }}>
-          <h1 style={{ margin: 0, minWidth: "300px" }}>{getWeekRangeString(weekOffset)}</h1>
-          <div
-            className="week-status-badge"
-            style={{
-              backgroundColor: isPast ? "#e0e0e0" : "#e3f2fd",
-              color: isPast ? "#757575" : "#1976d2",
-            }}
-          >
-            {getWeekStatusLabel(weekOffset)}
-          </div>
-        </div>
-
-        <button
-          className="nav-arrow"
-          onClick={() => setWeekOffset(weekOffset + 1)}
-          disabled={weekOffset >= 3}
-          style={{ opacity: weekOffset >= 3 ? 0.3 : 1 }}
-        >
-          &#9654;
-        </button>
-      </div>
-
-      {/* 2. CONTROLS AREA (Toggle + Save Button) */}
-      {!isPast && (
+    <div className="schedule-page-wrapper">
+      <div className="schedule-left-column">
+        {/* Nav */}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
+            justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "16px",
+            width: "100%",
+            maxWidth: "800px",
+            marginBottom: "20px",
           }}
         >
-          {/* The Toggle */}
-          <div
-            className="mode-toggle-container"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              background: "#fff",
-              padding: "8px 20px",
-              borderRadius: "30px",
-              boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: isRecurringMode ? "bold" : "normal",
-                color: isRecurringMode ? "#333" : "#aaa",
-                fontSize: "0.9rem",
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              className="nav-arrow"
+              onClick={() => {
+                setWeekOffset(weekOffset - 1);
+                handleCancel();
               }}
+              disabled={weekOffset <= -2}
             >
-              🔄 Recurring
-            </span>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={!isRecurringMode}
-                onChange={() => setIsRecurringMode(!isRecurringMode)}
-              />
-              <span className="slider round"></span>
-            </label>
-            <span
-              style={{
-                fontWeight: !isRecurringMode ? "bold" : "normal",
-                color: !isRecurringMode ? "#333" : "#aaa",
-                fontSize: "0.9rem",
+              &#9664;
+            </button>
+            <div style={{ textAlign: "center", minWidth: "180px" }}>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                  color: getWeekLabel(weekOffset).color,
+                  textTransform: "uppercase",
+                }}
+              >
+                {getWeekLabel(weekOffset).text}
+              </span>
+              <h2 style={{ margin: 0, fontSize: "1.1rem" }}>{getWeekRangeString(weekOffset)}</h2>
+            </div>
+            <button
+              className="nav-arrow"
+              onClick={() => {
+                setWeekOffset(weekOffset + 1);
+                handleCancel();
               }}
+              disabled={weekOffset >= 3}
             >
-              📅 Specific
-            </span>
-          </div>
-
-          {/* The Save Button (Moved Here) */}
-          <div style={{ height: "40px", marginTop: "8px" }}>
-            {userId && (
-              <>
-                <button
-                  className="save-button"
-                  onClick={handleSave}
-                  style={{ backgroundColor: isRecurringMode ? "#333" : "#2196f3" }}
-                >
-                  {isRecurringMode ? "Save Recurring" : "Save Specific"}
-                </button>
-                {saveMessage && (
-                  <span
-                    style={{
-                      marginLeft: "10px",
-                      color: "green",
-                      fontWeight: "bold",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    {saveMessage}
-                  </span>
-                )}
-              </>
+              &#9654;
+            </button>
+            {!isEditing && weekOffset !== 0 && (
+              <button className="today-btn" onClick={jumpToToday}>
+                Today
+              </button>
             )}
           </div>
+
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {saveMessage && (
+              <span style={{ color: "green", fontWeight: "bold", fontSize: "0.85rem" }}>
+                {saveMessage}
+              </span>
+            )}
+
+            {!isPast &&
+              (!isEditing ? (
+                <button
+                  className="save-button"
+                  style={{ background: "#333" }}
+                  onClick={handleEditToggle}
+                >
+                  ✏️ Edit Schedule
+                </button>
+              ) : (
+                <>
+                  {/* Warning State */}
+                  {showOverwriteWarning ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        background: "#ffebee",
+                        padding: "5px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #ef5350",
+                      }}
+                    >
+                      <span style={{ fontSize: "0.75rem", color: "#c62828", fontWeight: "bold" }}>
+                        Overwrite future changes?
+                      </span>
+                      <button
+                        className="save-button"
+                        style={{ background: "#ef5350", fontSize: "0.75rem", padding: "4px 8px" }}
+                        onClick={performSaveRecurring}
+                      >
+                        Yes, Overwrite
+                      </button>
+                      <button
+                        className="save-button"
+                        style={{ background: "#333", fontSize: "0.75rem", padding: "4px 8px" }}
+                        onClick={() => setShowOverwriteWarning(false)}
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    // Normal Edit State
+                    <>
+                      <button
+                        className="save-button"
+                        style={{
+                          background: "#fff",
+                          color: "#d32f2f",
+                          border: "1px solid #d32f2f",
+                        }}
+                        onClick={handleClear}
+                      >
+                        🗑️ Clear
+                      </button>
+                      <button
+                        className="save-button"
+                        style={{ background: "#eee", color: "#333" }}
+                        onClick={handleCancel}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="save-button"
+                        style={{ background: "#2196f3" }}
+                        onClick={saveSpecific}
+                      >
+                        Only This Week
+                      </button>
+                      <button
+                        className="save-button"
+                        style={{ background: "#333" }}
+                        onClick={initiateSaveRecurring}
+                      >
+                        Save Recurring
+                      </button>
+                    </>
+                  )}
+                </>
+              ))}
+          </div>
         </div>
-      )}
 
-      {/* 3. SUBTITLE */}
-      <p className="subtitle">
-        {isPast ? (
-          <span style={{ color: "#777" }}>Historic data is read-only.</span>
-        ) : isRecurringMode ? (
-          "Editing General Availability (Applies to all future weeks)"
-        ) : (
-          `Editing ONLY the week of ${getWeekRangeString(weekOffset)}`
-        )}
-      </p>
-
-      {/* 4. THE GRID */}
-      {userId ? (
+        {/* Grid */}
         <div
-          className={`schedule-grid ${isPast ? "disabled" : ""}`}
-          style={{
-            border: isPast
-              ? "2px solid #ccc"
-              : isRecurringMode
-                ? "2px solid #333"
-                : "2px solid #2196f3",
-          }}
+          className={`schedule-grid ${isPast ? "disabled" : ""} ${isEditing ? "editing-mode" : ""}`}
         >
-          <div
-            className="grid-header"
-            style={{ background: isPast ? "#777" : isRecurringMode ? "#555" : "#1976d2" }}
-          >
+          <div className="grid-header" style={{ background: "#555" }}>
             Time
           </div>
-          {DAYS.map((day, index) => (
-            <div
-              key={day}
-              className="grid-header"
-              style={{ background: isPast ? "#777" : isRecurringMode ? "#333" : "#1565c0" }}
-            >
+          {DAYS.map((day, idx) => (
+            <div key={day} className="grid-header">
               {day}{" "}
-              <span style={{ fontWeight: "normal", fontSize: "0.9em" }}>
-                {getDateForColumn(weekOffset, index)}
+              <span style={{ fontWeight: "normal", fontSize: "0.8em" }}>
+                {getDateForColumn(weekOffset, idx)}
               </span>
             </div>
           ))}
 
-          {HOURS.map((hourLabel, hIndex) => (
-            <React.Fragment key={hIndex}>
-              <div className="time-label">{hourLabel}</div>
-              {DAYS.map((_, dIndex) => (
-                <div
-                  key={`${dIndex}-${hIndex}`}
-                  className={getCellClass(displayGrid[dIndex][hIndex])}
-                  onClick={() => handleCellClick(dIndex, hIndex)}
-                />
-              ))}
+          {HOURS.map((hour, hIdx) => (
+            <React.Fragment key={hIdx}>
+              <div className="time-label">
+                <span className="time-start">{hour.start}</span>
+                <span className="time-end">{hour.end}</span>
+              </div>
+              {DAYS.map((_, dIdx) => {
+                const val = displayGrid[dIdx][hIdx];
+                const highlighted =
+                  hoveredQuest &&
+                  dIdx === hoveredQuest.day &&
+                  hIdx >= hoveredQuest.startHour &&
+                  hIdx < hoveredQuest.startHour + hoveredQuest.duration;
+                return (
+                  <div
+                    key={`${dIdx}-${hIdx}`}
+                    className={`grid-cell ${highlighted ? "cell-highlight" : val === 1 ? "cell-free" : val === 2 ? "cell-meal" : val === 3 ? "cell-quest" : "cell-busy"}`}
+                    onClick={() => handleCellClick(dIdx, hIdx)}
+                  />
+                );
+              })}
             </React.Fragment>
           ))}
         </div>
-      ) : (
-        <div>Please log in.</div>
-      )}
+
+        <div className="schedule-legend">
+          <div className="legend-item">
+            <div className="legend-box" style={{ background: "#66bb6a" }} /> Free
+          </div>
+          <div className="legend-item">
+            <div className="legend-box" style={{ background: "#ffca28" }} /> Meal
+          </div>
+          <div className="legend-item">
+            <div className="legend-box" style={{ background: "#2196f3" }} /> Quest
+          </div>
+          {isPast && (
+            <span style={{ marginLeft: "auto", fontSize: "0.8rem", color: "#999" }}>Read Only</span>
+          )}
+        </div>
+      </div>
+
+      {/* Right Column (Quests) */}
+      <div className="schedule-right-column">
+        <h3 style={{ marginTop: 0 }}>Available Quests</h3>
+        <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "20px" }}>
+          Based on your free slots for this week.
+        </p>
+        <div className="quest-list">
+          {filteredQuests.map((quest) => (
+            <div
+              key={quest.id}
+              className={`quest-card ${quest.type === "meal" ? "type-meal" : "type-activity"}`}
+              onMouseEnter={() => setHoveredQuest(quest)}
+              onMouseLeave={() => setHoveredQuest(null)}
+            >
+              <div className="quest-header">
+                <span className="quest-title">{quest.title}</span>
+                <span className="quest-score">{quest.matchPercent}%</span>
+              </div>
+              <div className="quest-time">
+                📅 {DAYS[quest.day]} • ⏰ {HOURS[quest.startHour].start} -{" "}
+                {HOURS[quest.startHour + quest.duration - 1].end}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

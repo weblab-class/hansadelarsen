@@ -4,23 +4,25 @@ import { get } from "../../utilities";
 import "./Schedule.css";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// MATCHING THE NEW SCHEDULE FORMAT
 const HOURS = [
-  "8 AM",
-  "9 AM",
-  "10 AM",
-  "11 AM",
-  "12 PM",
-  "1 PM",
-  "2 PM",
-  "3 PM",
-  "4 PM",
-  "5 PM",
-  "6 PM",
-  "7 PM",
-  "8 PM",
-  "9 PM",
-  "10 PM",
-  "11 PM",
+  { start: "8 AM", end: "9 AM" },
+  { start: "9 AM", end: "10 AM" },
+  { start: "10 AM", end: "11 AM" },
+  { start: "11 AM", end: "12 PM" },
+  { start: "12 PM", end: "1 PM" },
+  { start: "1 PM", end: "2 PM" },
+  { start: "2 PM", end: "3 PM" },
+  { start: "3 PM", end: "4 PM" },
+  { start: "4 PM", end: "5 PM" },
+  { start: "5 PM", end: "6 PM" },
+  { start: "6 PM", end: "7 PM" },
+  { start: "7 PM", end: "8 PM" },
+  { start: "8 PM", end: "9 PM" },
+  { start: "9 PM", end: "10 PM" },
+  { start: "10 PM", end: "11 PM" },
+  { start: "11 PM", end: "12 AM" },
 ];
 
 const MONTHS = [
@@ -48,7 +50,6 @@ const History = () => {
   const realCurrentYear = today.getFullYear();
   const realCurrentMonth = today.getMonth();
 
-  // Calculate the "Real" Current Monday to stop future navigation
   const dayOfWeek = today.getDay() || 7;
   const realCurrentMonday = new Date(today);
   realCurrentMonday.setDate(today.getDate() - dayOfWeek + 1);
@@ -84,15 +85,11 @@ const History = () => {
 
   const weeksList = getWeeksInMonth(selectedYear, selectedMonth);
 
-  // --- STATE CORRECTION (THE FIX) ---
+  // --- STATE CORRECTION ---
   useEffect(() => {
-    // 1. CONSTRAINT: If we switched to current year, but the old month is in the future...
     if (selectedYear === realCurrentYear && selectedMonth > realCurrentMonth) {
-      // Snap back to the real current month
       setSelectedMonth(realCurrentMonth);
     }
-
-    // 2. ALWAYS reset to the first week when context changes
     setSelectedWeekIndex(0);
   }, [selectedYear, selectedMonth]);
 
@@ -103,12 +100,10 @@ const History = () => {
     } else {
       let newMonth = selectedMonth - 1;
       let newYear = selectedYear;
-
       if (newMonth < 0) {
         newMonth = 11;
         newYear = selectedYear - 1;
       }
-
       const prevMonthWeeks = getWeeksInMonth(newYear, newMonth);
       setSelectedYear(newYear);
       setSelectedMonth(newMonth);
@@ -122,12 +117,10 @@ const History = () => {
     } else {
       let newMonth = selectedMonth + 1;
       let newYear = selectedYear;
-
       if (newMonth > 11) {
         newMonth = 0;
         newYear = selectedYear + 1;
       }
-
       setSelectedYear(newYear);
       setSelectedMonth(newMonth);
       setSelectedWeekIndex(0);
@@ -141,7 +134,6 @@ const History = () => {
 
   const currentWeekId = currentWeekStart.toDateString();
 
-  // Can we go forward?
   const nextWeekCheck = new Date(currentWeekStart);
   nextWeekCheck.setDate(nextWeekCheck.getDate() + 7);
   const isFuture = nextWeekCheck > realCurrentMonday;
@@ -181,148 +173,168 @@ const History = () => {
   const getCellClass = (val) => {
     if (val === 1) return "grid-cell cell-free";
     if (val === 2) return "grid-cell cell-meal";
+    if (val === 3) return "grid-cell cell-quest";
     return "grid-cell cell-busy";
   };
 
   const isBeforeCutoff = currentWeekStart < CUTOFF_DATE;
 
   return (
-    <div className="schedule-container">
-      <h1 style={{ marginBottom: "16px" }}>Schedule History</h1>
+    <div className="schedule-page-wrapper">
+      {/* --- LEFT COLUMN: HISTORY GRID --- */}
+      <div className="schedule-left-column">
+        <h1 style={{ marginBottom: "16px", marginTop: 0 }}>Schedule History</h1>
 
-      {/* --- HISTORY CONTROLS --- */}
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          marginBottom: "24px",
-          background: "white",
-          padding: "16px",
-          borderRadius: "12px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          alignItems: "center",
-        }}
-      >
-        {/* PREV ARROW */}
-        <button className="nav-arrow" onClick={handlePrevWeek}>
-          &#9664;
-        </button>
-
-        {/* YEAR SELECTOR */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#666" }}>Year</label>
-          <input
-            type="number"
-            value={selectedYear}
-            max={realCurrentYear}
-            onChange={(e) => {
-              const val = parseInt(e.target.value);
-              if (val <= realCurrentYear) setSelectedYear(val);
-            }}
-            style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc", width: "80px" }}
-          />
-        </div>
-
-        {/* MONTH SELECTOR */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#666" }}>Month</label>
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-            style={{
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              minWidth: "120px",
-            }}
-          >
-            {MONTHS.map((m, i) => {
-              if (selectedYear === realCurrentYear && i > realCurrentMonth) return null;
-              return (
-                <option key={m} value={i}>
-                  {m}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-
-        {/* WEEK SELECTOR */}
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#666" }}>Week Of</label>
-          <select
-            value={safeIndex}
-            onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
-            style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc", width: "100%" }}
-          >
-            {weeksList.map((date, i) => {
-              if (date > realCurrentMonday) return null;
-
-              const end = new Date(date);
-              end.setDate(date.getDate() + 6);
-              return (
-                <option key={i} value={i}>
-                  {date.toLocaleDateString()} - {end.toLocaleDateString()}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-
-        {/* NEXT ARROW */}
-        <button
-          className="nav-arrow"
-          onClick={handleNextWeek}
-          disabled={isFuture}
-          style={{ opacity: isFuture ? 0.3 : 1, cursor: isFuture ? "default" : "pointer" }}
+        {/* CONTROLS */}
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            marginBottom: "24px",
+            background: "white",
+            padding: "10px 16px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            alignItems: "center",
+          }}
         >
-          &#9654;
-        </button>
+          <button className="nav-arrow" onClick={handlePrevWeek}>
+            &#9664;
+          </button>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "0.7rem", fontWeight: "bold", color: "#666" }}>Year</label>
+            <input
+              type="number"
+              value={selectedYear}
+              max={realCurrentYear}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (val <= realCurrentYear) setSelectedYear(val);
+              }}
+              style={{
+                padding: "4px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                width: "60px",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "0.7rem", fontWeight: "bold", color: "#666" }}>Month</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              style={{
+                padding: "4px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                minWidth: "100px",
+              }}
+            >
+              {MONTHS.map((m, i) => {
+                if (selectedYear === realCurrentYear && i > realCurrentMonth) return null;
+                return (
+                  <option key={m} value={i}>
+                    {m}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+            <label style={{ fontSize: "0.7rem", fontWeight: "bold", color: "#666" }}>Week Of</label>
+            <select
+              value={safeIndex}
+              onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
+              style={{
+                padding: "4px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                width: "100%",
+              }}
+            >
+              {weeksList.map((date, i) => {
+                if (date > realCurrentMonday) return null;
+                const end = new Date(date);
+                end.setDate(date.getDate() + 6);
+                return (
+                  <option key={i} value={i}>
+                    {date.toLocaleDateString()} - {end.toLocaleDateString()}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <button
+            className="nav-arrow"
+            onClick={handleNextWeek}
+            disabled={isFuture}
+            style={{ opacity: isFuture ? 0.3 : 1, cursor: isFuture ? "default" : "pointer" }}
+          >
+            &#9654;
+          </button>
+        </div>
+
+        <p className="subtitle" style={{ marginTop: 0, marginBottom: "16px" }}>
+          {isBeforeCutoff
+            ? "No records exist before Jan 1, 2026."
+            : "Viewing historic record (Read Only)."}
+        </p>
+
+        {/* THE GRID */}
+        {userId ? (
+          <div
+            className="schedule-grid disabled"
+            style={{ border: "2px solid #ccc", opacity: isBeforeCutoff ? 0.4 : 0.7 }}
+          >
+            <div className="grid-header" style={{ background: "#777" }}>
+              Time
+            </div>
+            {DAYS.map((day, index) => (
+              <div key={day} className="grid-header" style={{ background: "#777" }}>
+                {day}{" "}
+                <span style={{ fontWeight: "normal", fontSize: "0.9em" }}>
+                  {getDateForColumn(index)}
+                </span>
+              </div>
+            ))}
+
+            {HOURS.map((hourObj, hIndex) => (
+              <React.Fragment key={hIndex}>
+                {/* NEW VERTICAL TIME LABEL */}
+                <div className="time-label">
+                  <span className="time-start">{hourObj.start}</span>
+                  <span className="time-end">{hourObj.end}</span>
+                </div>
+
+                {DAYS.map((_, dIndex) => (
+                  <div
+                    key={`${dIndex}-${hIndex}`}
+                    className={getCellClass(displayGrid[dIndex][hIndex])}
+                  />
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <div>Please log in.</div>
+        )}
       </div>
 
-      <p className="subtitle">
-        {isBeforeCutoff ? (
-          <span>No records exist before Jan 1, 2026.</span>
-        ) : (
-          <span>
-            Viewing historic record. <span style={{ color: "#777" }}>Read Only.</span>
-          </span>
-        )}
-      </p>
-
-      {/* --- THE GRID --- */}
-      {userId ? (
-        <div
-          className="schedule-grid disabled"
-          style={{ border: "2px solid #ccc", opacity: isBeforeCutoff ? 0.4 : 0.7 }}
-        >
-          <div className="grid-header" style={{ background: "#777" }}>
-            Time
-          </div>
-          {DAYS.map((day, index) => (
-            <div key={day} className="grid-header" style={{ background: "#777" }}>
-              {day}{" "}
-              <span style={{ fontWeight: "normal", fontSize: "0.9em" }}>
-                {getDateForColumn(index)}
-              </span>
-            </div>
-          ))}
-
-          {HOURS.map((hourLabel, hIndex) => (
-            <React.Fragment key={hIndex}>
-              <div className="time-label">{hourLabel}</div>
-              {DAYS.map((_, dIndex) => (
-                <div
-                  key={`${dIndex}-${hIndex}`}
-                  className={getCellClass(displayGrid[dIndex][hIndex])}
-                />
-              ))}
-            </React.Fragment>
-          ))}
+      {/* --- RIGHT COLUMN: SUMMARY / PLACEHOLDER --- */}
+      <div className="schedule-right-column">
+        <div className="quest-feed-header">
+          <h3 style={{ margin: 0, color: "#777" }}>Weekly Summary</h3>
         </div>
-      ) : (
-        <div>Please log in.</div>
-      )}
+        <div style={{ color: "#999", textAlign: "center", marginTop: "40px", fontStyle: "italic" }}>
+          Detailed quest logs for past weeks are archived. <br />
+          (This area mimics the layout of the main schedule page)
+        </div>
+      </div>
     </div>
   );
 };
