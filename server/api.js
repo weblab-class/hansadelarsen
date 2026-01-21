@@ -42,6 +42,31 @@ router.post("/initsocket", (req, res) => {
 // |------------------------------|
 // | write your API methods below!|
 // |------------------------------|
+router.post("/preferences", (req, res) => {
+  // 1. Safety Check: Are they logged in?
+  if (!req.user) {
+    return res.status(401).send({ msg: "You must be logged in to save!" });
+  }
+
+  User.findById(req.user._id).then((user) => {
+    // 2. Safety Check: Does user exist?
+    if (!user) {
+      return res.status(404).send({ msg: "User not found" });
+    }
+
+    // 3. THE FIX: Handle missing preferences
+    // If user.preferences is undefined, use an empty object {} instead.
+    const existingPrefs = user.preferences || {};
+
+    // Merge new data into the existing (or empty) object
+    user.preferences = Object.assign(existingPrefs, req.body);
+
+    // 4. Save to MongoDB
+    user.save().then((updatedUser) => {
+      res.send(updatedUser);
+    });
+  });
+});
 
 // anything else falls to this "not found" case
 router.all("*", (req, res) => {

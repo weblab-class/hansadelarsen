@@ -1,0 +1,62 @@
+.profile-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 16px;
+  min-height: 100vh;
+  background-color: #f7f9fc; /* Light grey background */
+}
+
+.profile-section {
+  background: white;
+  padding: 32px;
+  border-radius: 16px; /* Soft rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle drop shadow */
+  width: 100%;
+  max-width: 500px; /* Prevents it from getting too wide */
+}
+
+h1 {
+  margin-bottom: 8px;
+  color: #333;
+  text-align: center;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 32px;
+  color: #666;
+  text-align: center;
+}
+
+.save-button {
+  margin-top: 32px;
+  width: 100%;
+  padding: 12px;
+  background-color: #333; /* Dark button */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.save-button:hover {
+  background-color: #555; /* Lighter on hover */
+}
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.age-input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 60px;
+}
