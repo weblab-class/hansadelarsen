@@ -13,25 +13,39 @@ h1 {
 }
 .subtitle {
   color: #666;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
 /* THE MAIN GRID CONTAINER */
 .schedule-grid {
   display: grid;
-  /* 60px for time labels, plus 7 equal columns for days */
   grid-template-columns: 60px repeat(7, 1fr);
   gap: 4px;
-  background-color: #ddd; /* Gap color (creates borders) */
+  background-color: #ddd;
   border: 1px solid #ccc;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-width: 1000px;
   width: 100%;
+  transition:
+    filter 0.3s,
+    opacity 0.3s;
 }
 
-/* HEADERS (Days of Week) */
+/* --- DISABLED STATE (PAST) --- */
+.schedule-grid.disabled {
+  /* Only slightly desaturated so colors are still visible */
+  filter: grayscale(30%);
+  opacity: 0.7;
+}
+
+.schedule-grid.disabled .grid-cell {
+  cursor: not-allowed; /* The 'Stop' symbol 🚫 */
+}
+
+/* HEADERS & CELLS */
 .grid-header {
   background-color: #333;
   color: white;
@@ -40,7 +54,6 @@ h1 {
   text-align: center;
 }
 
-/* TIME LABELS (Left Column) */
 .time-label {
   background-color: #fff;
   color: #555;
@@ -53,14 +66,12 @@ h1 {
   font-weight: bold;
 }
 
-/* INTERACTIVE CELLS */
 .grid-cell {
   background-color: white;
   cursor: pointer;
-  height: 40px; /* Height of each hour slot */
+  height: 40px;
   transition: background-color 0.1s;
 }
-
 .grid-cell:hover {
   filter: brightness(0.95);
 }
@@ -76,18 +87,91 @@ h1 {
   background-color: #ffca28;
 } /* Orange */
 
-/* BUTTONS */
+/* --- CONTROLS --- */
+.week-status-badge {
+  background-color: #eee;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #555;
+  margin-left: 10px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Save Button (Smaller & Sharper) */
 .save-button {
-  margin-top: 24px;
-  padding: 12px 32px;
-  background-color: #333;
-  color: white;
+  padding: 8px 24px; /* Reduced padding */
+  font-size: 1rem; /* Slightly smaller font */
   border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
+  border-radius: 6px;
   font-weight: bold;
   cursor: pointer;
+  color: white;
+  margin-top: 10px; /* Spacing from toggle */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s;
 }
-.save-button:hover {
-  background-color: #555;
+
+.save-button:active {
+  transform: scale(0.96);
+}
+
+.nav-arrow {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #333;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.nav-arrow:active {
+  transform: scale(0.9);
+}
+
+/* TOGGLE SWITCH */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333;
+  transition: 0.4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+}
+input:checked + .slider {
+  background-color: #2196f3;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
 }

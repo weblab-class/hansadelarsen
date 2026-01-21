@@ -6,10 +6,9 @@ import "./NavBar.css";
 
 const NavBar = () => {
   const { userId, handleLogin, handleLogout } = useContext(UserContext);
-  const location = useLocation(); // Gets the current URL path
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Helper to determine Page Title based on URL
   const getPageTitle = (path) => {
     switch (path) {
       case "/":
@@ -41,11 +40,7 @@ const NavBar = () => {
         {userId ? (
           <>
             {/* A. Hamburger Menu (First) */}
-            <button
-              className="hamburger-btn"
-              onClick={toggleMenu}
-              style={{ marginRight: "20px" }} // Adds space between menu and profile
-            >
+            <button className="hamburger-btn" onClick={toggleMenu} style={{ marginRight: "20px" }}>
               ☰
             </button>
 
@@ -54,15 +49,37 @@ const NavBar = () => {
               👤
             </Link>
 
-            {/* C. The Dropdown (Only visible if menuOpen is true) */}
+            {/* C. The Dropdown */}
+            {/* C. The Dropdown */}
             {menuOpen && (
               <div className="nav-dropdown">
+                {/* 1. About */}
                 <Link to="/about" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
                   About
                 </Link>
+
+                {/* 2. Home */}
                 <Link to="/" className="nav-dropdown-link" onClick={() => setMenuOpen(false)}>
                   Home
                 </Link>
+
+                {/* 3. Schedule (MAKE SURE THIS IS HERE) */}
+                <Link
+                  to="/schedule"
+                  className="nav-dropdown-link"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Schedule
+                </Link>
+                <Link
+                  to="/history"
+                  className="nav-dropdown-link"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  History
+                </Link>
+
+                {/* 4. Quest Share */}
                 <Link
                   to="/quest-share"
                   className="nav-dropdown-link"
@@ -71,7 +88,7 @@ const NavBar = () => {
                   Quest Share
                 </Link>
 
-                {/* Logout Option */}
+                {/* 5. Logout */}
                 <div
                   className="nav-dropdown-link"
                   style={{ color: "red", cursor: "pointer" }}
@@ -86,7 +103,6 @@ const NavBar = () => {
             )}
           </>
         ) : (
-          /* If Logged Out: Show Google Login Button */
           <div className="auth-container">
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log("Login Failed")} />
           </div>

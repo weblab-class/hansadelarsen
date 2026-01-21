@@ -26,83 +26,293 @@ const HOURS = [
 const Schedule = () => {
   const { userId } = useContext(UserContext);
   const [saveMessage, setSaveMessage] = useState("");
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Initialize a 7x16 grid with 0s (Busy)
-  // grid[dayIndex][hourIndex]
-  const [grid, setGrid] = useState(
+  // --- STATE ---
+  const [recurringSchedule, setRecurringSchedule] = useState(
     Array(7)
       .fill(null)
       .map(() => Array(16).fill(0))
   );
+  const [specificWeeks, setSpecificWeeks] = useState({});
+  const [isRecurringMode, setIsRecurringMode] = useState(true);
 
+  // --- DATE HELPERS ---
+  const getWeekStart = (offset) => {
+    const current = new Date();
+    const day = current.getDay() || 7;
+    const startOfWeek = new Date(current);
+    startOfWeek.setDate(current.getDate() - day + 1);
+    startOfWeek.setDate(startOfWeek.getDate() + offset * 7);
+    return startOfWeek;
+  };
+
+  const getWeekId = (offset) => {
+    return getWeekStart(offset).toDateString();
+  };
+
+  const getWeekRangeString = (offset) => {
+    const start = getWeekStart(offset);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const options = { month: "short", day: "numeric" };
+    const year =
+      start.getFullYear() !== end.getFullYear()
+        ? `, ${end.getFullYear()}`
+        : `, ${start.getFullYear()}`;
+    return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", options)}${year}`;
+  };
+
+  const getDateForColumn = (offset, colIndex) => {
+    const start = getWeekStart(offset);
+    const target = new Date(start);
+    target.setDate(start.getDate() + colIndex);
+    return target.getDate();
+  };
+
+  const getWeekStatusLabel = (offset) => {
+    if (offset < 0) return "Past Week (Read Only)";
+    if (offset === 0) return "Current Week";
+    if (offset === 1) return "Next Week";
+    return `${offset} Weeks Ahead`;
+  };
+
+  // --- FETCH DATA ---
   useEffect(() => {
     if (userId) {
       get("/api/whoami").then((user) => {
-        // If the user has a saved schedule that matches our dimensions, load it
         if (user.schedule && user.schedule.length === 7) {
-          setGrid(user.schedule);
+          setRecurringSchedule(user.schedule);
+        }
+        if (user.specificWeeks) {
+          setSpecificWeeks(user.specificWeeks);
         }
       });
     }
   }, [userId]);
 
-  // Toggle: 0 (Busy) -> 1 (Free) -> 2 (Meal) -> 0
+  // --- VIEW LOGIC ---
+  const currentWeekId = getWeekId(weekOffset);
+  let displayGrid = recurringSchedule;
+  if (specificWeeks[currentWeekId]) {
+    displayGrid = specificWeeks[currentWeekId];
+  }
+
+  // --- HANDLERS ---
   const handleCellClick = (dayIndex, hourIndex) => {
-    setGrid((prevGrid) => {
-      const newGrid = prevGrid.map((row) => [...row]); // Deep copy
-      const currentVal = newGrid[dayIndex][hourIndex];
-      newGrid[dayIndex][hourIndex] = (currentVal + 1) % 3; // Cycle 0->1->2->0
-      return newGrid;
-    });
+    if (weekOffset < 0) return; // Block Past Edits
+
+    let newGrid = displayGrid.map((row) => [...row]);
+    const currentVal = newGrid[dayIndex][hourIndex];
+    newGrid[dayIndex][hourIndex] = (currentVal + 1) % 3;
+
+    if (isRecurringMode) {
+      setRecurringSchedule(newGrid);
+    } else {
+      setSpecificWeeks((prev) => ({
+        ...prev,
+        [currentWeekId]: newGrid,
+      }));
+    }
   };
 
   const handleSave = () => {
-    post("/api/schedule", { schedule: grid }).then(() => {
-      setSaveMessage("✅ Schedule Saved!");
+    if (weekOffset < 0) return;
+
+    let payload = {};
+    if (isRecurringMode) {
+      const hasFutureData = Object.keys(specificWeeks).length > 0;
+      if (hasFutureData) {
+        const confirmOverwrite = window.confirm(
+          "⚠️ Warning: Saving this Recurring Schedule will overwrite your future specific plans.\nContinue?"
+        );
+        if (!confirmOverwrite) return;
+      }
+      payload = { schedule: recurringSchedule, specificWeeks: {} };
+      setSpecificWeeks({});
+    } else {
+      payload = { specificWeeks: specificWeeks };
+    }
+
+    post("/api/schedule", payload).then(() => {
+      setSaveMessage(isRecurringMode ? "✅ Saved!" : "✅ Saved!");
       setTimeout(() => setSaveMessage(""), 2000);
     });
   };
 
-  // Helper to get class name based on value
   const getCellClass = (val) => {
     if (val === 1) return "grid-cell cell-free";
     if (val === 2) return "grid-cell cell-meal";
     return "grid-cell cell-busy";
   };
 
+  const isPast = weekOffset < 0;
+
   return (
     <div className="schedule-container">
-      <h1>Weekly Availability</h1>
+      {/* 1. DATE NAV */}
+      <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "8px" }}>
+        <button
+          className="nav-arrow"
+          onClick={() => setWeekOffset(weekOffset - 1)}
+          disabled={weekOffset <= -2}
+          style={{ opacity: weekOffset <= -2 ? 0.3 : 1 }}
+        >
+          &#9664;
+        </button>
+
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ margin: 0, minWidth: "300px" }}>{getWeekRangeString(weekOffset)}</h1>
+          <div
+            className="week-status-badge"
+            style={{
+              backgroundColor: isPast ? "#e0e0e0" : "#e3f2fd",
+              color: isPast ? "#757575" : "#1976d2",
+            }}
+          >
+            {getWeekStatusLabel(weekOffset)}
+          </div>
+        </div>
+
+        <button
+          className="nav-arrow"
+          onClick={() => setWeekOffset(weekOffset + 1)}
+          disabled={weekOffset >= 3}
+          style={{ opacity: weekOffset >= 3 ? 0.3 : 1 }}
+        >
+          &#9654;
+        </button>
+      </div>
+
+      {/* 2. CONTROLS AREA (Toggle + Save Button) */}
+      {!isPast && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginBottom: "16px",
+          }}
+        >
+          {/* The Toggle */}
+          <div
+            className="mode-toggle-container"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              background: "#fff",
+              padding: "8px 20px",
+              borderRadius: "30px",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: isRecurringMode ? "bold" : "normal",
+                color: isRecurringMode ? "#333" : "#aaa",
+                fontSize: "0.9rem",
+              }}
+            >
+              🔄 Recurring
+            </span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={!isRecurringMode}
+                onChange={() => setIsRecurringMode(!isRecurringMode)}
+              />
+              <span className="slider round"></span>
+            </label>
+            <span
+              style={{
+                fontWeight: !isRecurringMode ? "bold" : "normal",
+                color: !isRecurringMode ? "#333" : "#aaa",
+                fontSize: "0.9rem",
+              }}
+            >
+              📅 Specific
+            </span>
+          </div>
+
+          {/* The Save Button (Moved Here) */}
+          <div style={{ height: "40px", marginTop: "8px" }}>
+            {userId && (
+              <>
+                <button
+                  className="save-button"
+                  onClick={handleSave}
+                  style={{ backgroundColor: isRecurringMode ? "#333" : "#2196f3" }}
+                >
+                  {isRecurringMode ? "Save Recurring" : "Save Specific"}
+                </button>
+                {saveMessage && (
+                  <span
+                    style={{
+                      marginLeft: "10px",
+                      color: "green",
+                      fontWeight: "bold",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    {saveMessage}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. SUBTITLE */}
       <p className="subtitle">
-        Click to toggle:
-        <span style={{ margin: "0 8px" }}>⬜ Busy</span>
-        <span style={{ margin: "0 8px" }}>🟩 Free</span>
-        <span style={{ margin: "0 8px" }}>🟧 Meal</span>
+        {isPast ? (
+          <span style={{ color: "#777" }}>Historic data is read-only.</span>
+        ) : isRecurringMode ? (
+          "Editing General Availability (Applies to all future weeks)"
+        ) : (
+          `Editing ONLY the week of ${getWeekRangeString(weekOffset)}`
+        )}
       </p>
 
+      {/* 4. THE GRID */}
       {userId ? (
-        <div className="schedule-grid">
-          {/* 1. Header Row: Empty corner + Days */}
-          <div className="grid-header" style={{ background: "#555" }}>
+        <div
+          className={`schedule-grid ${isPast ? "disabled" : ""}`}
+          style={{
+            border: isPast
+              ? "2px solid #ccc"
+              : isRecurringMode
+                ? "2px solid #333"
+                : "2px solid #2196f3",
+          }}
+        >
+          <div
+            className="grid-header"
+            style={{ background: isPast ? "#777" : isRecurringMode ? "#555" : "#1976d2" }}
+          >
             Time
           </div>
-          {DAYS.map((day) => (
-            <div key={day} className="grid-header">
-              {day}
+          {DAYS.map((day, index) => (
+            <div
+              key={day}
+              className="grid-header"
+              style={{ background: isPast ? "#777" : isRecurringMode ? "#333" : "#1565c0" }}
+            >
+              {day}{" "}
+              <span style={{ fontWeight: "normal", fontSize: "0.9em" }}>
+                {getDateForColumn(weekOffset, index)}
+              </span>
             </div>
           ))}
 
-          {/* 2. Body Rows: Time Label + 7 Cells */}
           {HOURS.map((hourLabel, hIndex) => (
             <React.Fragment key={hIndex}>
-              {/* Time Label Column */}
               <div className="time-label">{hourLabel}</div>
-
-              {/* Day Columns for this Hour */}
               {DAYS.map((_, dIndex) => (
                 <div
                   key={`${dIndex}-${hIndex}`}
-                  className={getCellClass(grid[dIndex][hIndex])}
+                  className={getCellClass(displayGrid[dIndex][hIndex])}
                   onClick={() => handleCellClick(dIndex, hIndex)}
                 />
               ))}
@@ -110,25 +320,7 @@ const Schedule = () => {
           ))}
         </div>
       ) : (
-        <div
-          className="grid-cell"
-          style={{ padding: "20px", textAlign: "center", cursor: "default" }}
-        >
-          Please log in to edit your schedule.
-        </div>
-      )}
-
-      {userId && (
-        <div style={{ textAlign: "center" }}>
-          <button className="save-button" onClick={handleSave}>
-            Save Schedule
-          </button>
-          {saveMessage && (
-            <div style={{ marginTop: "10px", color: "green", fontWeight: "bold" }}>
-              {saveMessage}
-            </div>
-          )}
-        </div>
+        <div>Please log in.</div>
       )}
     </div>
   );

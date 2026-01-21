@@ -22,6 +22,11 @@ const UserSchema = new mongoose.Schema({
     outdoorsVibe: Number,
     educationalInterest: Number,
   },
+  // 1. The General "Template" (Recurring)
+  schedule: { type: Array, default: [] },
+
+  // 2. The Specific Exceptions (Key = Week Date, Value = Grid)
+  specificWeeks: { type: Object, default: {} },
 });
 
 module.exports = mongoose.model("user", UserSchema);

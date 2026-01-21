@@ -83,11 +83,17 @@ router.post("/schedule", (req, res) => {
   }
 
   User.findById(req.user._id).then((user) => {
-    // req.body.schedule should be the 7x16 array
-    user.schedule = req.body.schedule;
+    // 1. Update Recurring Schedule (if provided)
+    if (req.body.schedule) {
+      user.schedule = req.body.schedule;
+      user.markModified("schedule");
+    }
 
-    // Tell Mongoose it changed (arrays can be tricky)
-    user.markModified("schedule");
+    // 2. Update Specific Weeks (if provided)
+    if (req.body.specificWeeks) {
+      user.specificWeeks = req.body.specificWeeks;
+      user.markModified("specificWeeks");
+    }
 
     user.save().then((updatedUser) => {
       res.send(updatedUser);
