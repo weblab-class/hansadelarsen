@@ -1,0 +1,103 @@
+.NavBar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 1000; /* Ensures it stays on top of content */
+  height: 70px;
+  box-sizing: border-box;
+}
+
+/* --- Left Side: Page Title --- */
+.NavBar-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+}
+
+/* --- Right Side: Controls --- */
+.NavBar-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative; /* Needed for dropdown positioning */
+}
+
+/* Mini Profile Circle */
+.nav-profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 2px solid #ddd;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  text-decoration: none; /* Remove underline from Link */
+}
+
+.nav-profile-pic:hover {
+  border-color: #333;
+}
+
+/* Hamburger Button (Three Lines) */
+.hamburger-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #333;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.hamburger-btn:hover {
+  opacity: 0.7;
+}
+
+/* --- Dropdown Menu --- */
+.nav-dropdown {
+  position: absolute;
+  top: 60px; /* Below the navbar */
+  right: 0;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nav-dropdown-link {
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s;
+}
+
+.nav-dropdown-link:last-child {
+  border-bottom: none;
+}
+
+.nav-dropdown-link:hover {
+  background-color: #f7f9fc;
+}
+
+/* Auth Button (When logged out) */
+.auth-container {
+  display: flex;
+  align-items: center;
+}

@@ -75,6 +75,26 @@ router.post("/preferences", (req, res) => {
     });
   });
 });
+
+// POST /api/schedule
+router.post("/schedule", (req, res) => {
+  if (!req.user) {
+    return res.status(401).send({ msg: "Not logged in" });
+  }
+
+  User.findById(req.user._id).then((user) => {
+    // req.body.schedule should be the 7x16 array
+    user.schedule = req.body.schedule;
+
+    // Tell Mongoose it changed (arrays can be tricky)
+    user.markModified("schedule");
+
+    user.save().then((updatedUser) => {
+      res.send(updatedUser);
+    });
+  });
+});
+
 // anything else falls to this "not found" case
 router.all("*", (req, res) => {
   console.log(`API route not found: ${req.method} ${req.url}`);

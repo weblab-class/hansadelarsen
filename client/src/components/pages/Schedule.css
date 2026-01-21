@@ -1,0 +1,93 @@
+.schedule-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  background-color: #f7f9fc;
+  min-height: 100vh;
+}
+
+h1 {
+  margin-bottom: 8px;
+  color: #333;
+}
+.subtitle {
+  color: #666;
+  margin-bottom: 32px;
+}
+
+/* THE MAIN GRID CONTAINER */
+.schedule-grid {
+  display: grid;
+  /* 60px for time labels, plus 7 equal columns for days */
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 4px;
+  background-color: #ddd; /* Gap color (creates borders) */
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 1000px;
+  width: 100%;
+}
+
+/* HEADERS (Days of Week) */
+.grid-header {
+  background-color: #333;
+  color: white;
+  font-weight: bold;
+  padding: 12px;
+  text-align: center;
+}
+
+/* TIME LABELS (Left Column) */
+.time-label {
+  background-color: #fff;
+  color: #555;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #eee;
+  padding: 8px;
+  font-weight: bold;
+}
+
+/* INTERACTIVE CELLS */
+.grid-cell {
+  background-color: white;
+  cursor: pointer;
+  height: 40px; /* Height of each hour slot */
+  transition: background-color 0.1s;
+}
+
+.grid-cell:hover {
+  filter: brightness(0.95);
+}
+
+/* STATES */
+.cell-busy {
+  background-color: white;
+}
+.cell-free {
+  background-color: #66bb6a;
+} /* Green */
+.cell-meal {
+  background-color: #ffca28;
+} /* Orange */
+
+/* BUTTONS */
+.save-button {
+  margin-top: 24px;
+  padding: 12px 32px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.save-button:hover {
+  background-color: #555;
+}

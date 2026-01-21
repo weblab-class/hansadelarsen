@@ -98,15 +98,21 @@ const Profile = () => {
   // --- RENDER ---
   if (isLoading) return <div className="profile-page-container">Loading...</div>;
 
+  // Not Logged In State
   if (!userId) {
     return (
       <div className="profile-page-container">
         <div
           className="profile-card"
-          style={{ textAlign: "center", maxWidth: "400px", height: "auto" }}
+          style={{
+            textAlign: "center",
+            maxWidth: "300px" /* Smaller width */,
+            height: "200px" /* Adapts to content height */,
+            borderRadius: "8px" /* More squared (was 16px) */,
+            padding: "24px" /* Slightly less padding */,
+          }}
         >
-          <h2>Access Restricted</h2>
-          <p style={{ marginBottom: "24px" }}>Please log in to edit your profile.</p>
+          <h2 style={{ fontSize: "1.2rem", marginBottom: "16px" }}>Login or Create an Account</h2>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <GoogleLogin onSuccess={handleLogin} onError={() => console.log("Error")} />
           </div>
