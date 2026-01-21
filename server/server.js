@@ -12,7 +12,6 @@
 | - Sets up error handling in case something goes wrong when handling a request
 | - Actually starts the webserver
 */
-
 // validator runs some basic checks to make sure you've set everything up correctly
 // this is a tool provided by staff, so you don't need to worry about it
 const validator = require("./validator");
@@ -37,8 +36,9 @@ const socketManager = require("./server-socket");
 // Server configuration below
 // TODO change connection URL after setting up your team database
 const mongoConnectionURL = process.env.MONGO_SRV;
+
 // TODO change database name to the name you chose
-const databaseName = "FILL_ME_IN";
+const databaseName = "quest_finder";
 
 // mongoose 7 warning
 mongoose.set("strictQuery", false);
@@ -85,7 +85,9 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(reactPath, "index.html"), (err) => {
     if (err) {
       console.log("Error sending client/dist/index.html:", err.status || 500);
-      res.status(err.status || 500).send("Error sending client/dist/index.html - have you run `npm run build`?");
+      res
+        .status(err.status || 500)
+        .send("Error sending client/dist/index.html - have you run `npm run build`?");
     }
   });
 });
