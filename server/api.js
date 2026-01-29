@@ -21,6 +21,8 @@ const router = express.Router();
 //initialize socket
 const socketManager = require("./server-socket");
 
+const Score = require("./models/score");
+
 router.post("/login", auth.login);
 router.post("/logout", auth.logout);
 router.get("/whoami", (req, res) => {
@@ -37,6 +39,25 @@ router.post("/initsocket", (req, res) => {
   if (req.user)
     socketManager.addUser(req.user, socketManager.getSocketFromSocketID(req.body.socketid));
   res.send({});
+});
+
+//storing score for users
+router.post("/score", (req, res) => {
+  const newScore = new Score({
+    name: req.user ? req.user.name : "Anonymous",
+    googleId: req.user ? req.user.googleId : "anon",
+    score: req.body.score,
+  });
+
+  newScore.save().then((score) => res.send(score));
+});
+
+//getting scores from database
+router.get("/scores", (req, res) => {
+  Score.find({})
+    .sort({ score: -1 })
+    .limit(10)
+    .then((scores) => res.send(scores));
 });
 
 // |------------------------------|

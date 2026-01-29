@@ -1,1 +1,79 @@
-/* Fill me in :) */
+/*styling for the landing page*/
+.landing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  font-family: "Verdana", sans-serif;
+  text-align: center;
+}
+
+.game-title {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 2rem;
+  letter-spacing: 2px;
+}
+
+.menu-section {
+  margin: 15px 0;
+  width: 100%;
+}
+
+.divider {
+  width: 50%;
+  margin: 2rem 0;
+  border: 1px solid #ddd;
+}
+
+/* styles for the different functional buttons*/
+.btn-primary {
+  background-color: #4caf50;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 20px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: #45a049;
+}
+
+.btn-secondary {
+  background-color: #008cba;
+  border: none;
+  color: white;
+  padding: 10px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.btn-logout {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn-disabled {
+  background-color: #cccccc;
+  color: #666666;
+  padding: 15px 32px;
+  font-size: 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: not-allowed; /*functionality to hide cursor when button is disabled*/
+}

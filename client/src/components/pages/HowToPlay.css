@@ -1,0 +1,50 @@
+/*HOW to play page is a "snapshot" of the game screen with no functionality*/
+.blur-background .world-container,
+.blur-background .hud-container,
+.blur-background .controls-container {
+  filter: blur(1px) brightness(0.7);
+  pointer-events: none; /* Make sure they can't click the game buttons (no functionality*/
+}
+
+.instruction-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.instruction-box {
+  background-color: white;
+  color: #333;
+  padding: 30px;
+  border-radius: 15px;
+  width: 80%;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 4px solid #4caf50;
+  font-family: "Verdana", sans-serif;
+}
+
+.instruction-box h2 {
+  margin-top: 0;
+  color: #4caf50;
+  font-size: 2rem;
+  letter-spacing: 2px;
+}
+
+.instruction-box p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.instruction-box .btn-primary {
+  width: 100%;
+  margin: 0;
+}

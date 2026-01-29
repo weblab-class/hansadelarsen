@@ -1,0 +1,73 @@
+.leaderboard-container {
+  background-color: #222;
+  color: white;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 50px;
+  font-family: "Verdana", sans-serif;
+}
+
+.leaderboard-title {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  color: #4caf50;
+  letter-spacing: 5px;
+}
+
+.scores-list {
+  width: 60%;
+  max-width: 800px;
+  height: 60vh;
+  overflow-y: auto; /* allows to scroll to see more items if necessary, */
+  border: 2px solid #444;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  font-size: 1.2rem;
+}
+
+.score-row.header {
+  background-color: #333;
+  font-weight: bold;
+  color: #aaa;
+  position: sticky; /* method to keep header visible while scrolling*/
+  top: 0;
+}
+
+.rank-col {
+  width: 10%;
+}
+.name-col {
+  width: 60%;
+  text-align: left;
+}
+.score-col {
+  width: 30%;
+  text-align: right;
+  color: #ffeb3b;
+}
+
+.back-btn {
+  margin-top: 30px;
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  background-color: transparent;
+  border: 2px solid #666;
+  color: #aaa;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.back-btn:hover {
+  border-color: white;
+  color: white;
+}
